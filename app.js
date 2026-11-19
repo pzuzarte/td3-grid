@@ -645,9 +645,10 @@ function onReadGroup() {
 
 const play = { on: false, step: 0, pulse: 0, nextTime: 0, stopTimer: null, offs: [], absorbed: new Set() };
 const PPQ = 960; // Pulses to a beat, as the other grids count them for Sync.
-const pulsesPerStep = () => (state.pattern.triplet ? PPQ / 6 : PPQ / 4);
+const pulsesPerStep = () => PPQ / (state.pattern.triplet ? 3 : 4);
 
-const stepMs = () => (60000 / state.bpm / 4) * (state.pattern.triplet ? 2 / 3 : 1);
+// A step is a sixteenth, or in triplet mode an eighth-note triplet, three to a beat.
+const stepMs = () => 60000 / state.bpm / (state.pattern.triplet ? 3 : 4);
 
 function velocity(accent) {
   if (accent) return 127;
