@@ -25,6 +25,8 @@ const state = {
   slot: 0,
   channel: 1,
   hear: true,
+  keyOnly: true,
+  moveWithKey: true,
   outputName: "",
   undo: [],
   redo: [],
@@ -73,6 +75,8 @@ function restore() {
   if (Number.isInteger(saved.slot) && saved.slot >= 0 && saved.slot < TD3.SLOTS) state.slot = saved.slot;
   if (Number.isInteger(saved.channel) && saved.channel >= 1 && saved.channel <= 16) state.channel = saved.channel;
   if (typeof saved.hear === "boolean") state.hear = saved.hear;
+  if (typeof saved.keyOnly === "boolean") state.keyOnly = saved.keyOnly;
+  if (typeof saved.moveWithKey === "boolean") state.moveWithKey = saved.moveWithKey;
   if (typeof saved.outputName === "string") state.outputName = saved.outputName;
   library = cleanLibrary(readJson(LIBRARY_KEY, []));
 }
@@ -139,7 +143,20 @@ function withStep(index, edit) {
 
 const keyNotes = () => new Set(TD3.SCALES[state.scale].map((degree) => (state.root + degree) % 12));
 
-function buildGrid() {
+// The grid's rows, high C first: every key, or just those in the key and the pattern.
+function visibleRows() {
+  if (!state.keyOnly) return ROWS;
+  const inKey = keyNotes();
+  const used = new Set(state.pattern.steps.filter((item) => item.kind !== "rest").map((item) => item.note));
+  return ROWS.filter((note) => inKey.has(note % 12) || used.has(note));
+}
+
+let shownRows = "";
+
+function buildRows() {
+  const rows = visibleRows();
+  if (rows.join() === shownRows) return;
+  shownRows = rows.join();
   const grid = $("grid");
   const cells = [document.createElement("span")];
   for (let index = 0; index < TD3.STEPS; index += 1) {
@@ -149,7 +166,7 @@ function buildGrid() {
     number.dataset.step = String(index);
     cells.push(number);
   }
-  for (const note of ROWS) {
+  for (const note of rows) {
     const label = document.createElement("span");
     label.className = "label";
     label.dataset.note = String(note);
@@ -166,7 +183,9 @@ function buildGrid() {
     }
   }
   grid.replaceChildren(...cells);
+}
 
+function buildLanes() {
   const lanes = [
     ["octave", "Oct"],
     ["accent", "Accent"],
@@ -212,6 +231,7 @@ function laneText(cell, long, short = long) {
 }
 
 function render() {
+  buildRows();
   const { steps, length } = state.pattern;
   const inKey = keyNotes();
   document.querySelectorAll("#grid .label").forEach((label) => {
@@ -867,6 +887,8 @@ function fillSelects() {
   $("slot").value = String(state.slot);
   $("bpm").value = String(state.bpm);
   $("hear").checked = state.hear;
+  $("key-only").checked = state.keyOnly;
+  $("move-notes").checked = state.moveWithKey;
   $("name").value = state.name;
 }
 
@@ -930,8 +952,26 @@ function bindControls() {
   $("clear").onclick = () => change({ ...TD3.emptyPattern(), length: state.pattern.length, triplet: state.pattern.triplet },
     "Cleared. Undo brings it back.");
 
-  $("root").onchange = () => { state.root = Number($("root").value); save(); render(); };
+  $("root").onchange = () => {
+    const from = state.root;
+    state.root = Number($("root").value);
+    save();
+    if (state.moveWithKey && state.pattern.steps.some((item) => item.kind !== "rest")) {
+      // The nearest way to the new key first, then the other way round.
+      const up = (state.root - from + 12) % 12;
+      const tries = up <= 6 ? [up, up - 12] : [up - 12, up];
+      const moved = tries.map((semitones) => TD3.transpose(state.pattern, semitones)).find(Boolean);
+      if (moved && up) {
+        change(moved, `Moved the pattern into ${TD3.KEYS[state.root]}. Undo moves it back, leaving the key.`);
+        return;
+      }
+      if (!moved) setStatus(`The pattern can't move into ${TD3.KEYS[state.root]} without going past the TD-3's three octaves, so it stays where it is.`, true);
+    }
+    render();
+  };
   $("scale").onchange = () => { state.scale = $("scale").value; save(); render(); };
+  $("key-only").onchange = () => { state.keyOnly = $("key-only").checked; save(); render(); };
+  $("move-notes").onchange = () => { state.moveWithKey = $("move-notes").checked; save(); };
   $("output").onchange = () => {
     stopIfPlaying();
     state.outputName = $("output").value;
@@ -986,7 +1026,7 @@ function bindControls() {
 }
 
 restore();
-buildGrid();
+buildLanes();
 fillSelects();
 setTheme(document.documentElement.dataset.theme === "light");
 bindControls();

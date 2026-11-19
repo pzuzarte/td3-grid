@@ -53,7 +53,6 @@
 [hidden] { display: none !important; }
 
 
-html, body { height: 100%; }
 
 body {
   margin: 0;
@@ -116,7 +115,7 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .pill.ok { color: var(--ok); border-color: var(--ok); }
 .pill.warn { color: var(--warn); border-color: var(--warn); }
 
-.main { display: flex; flex: 1; gap: 14px; min-height: 0; padding: 14px; align-items: flex-start; }
+.main { display: flex; flex: 1 0 auto; gap: 14px; padding: 14px; align-items: flex-start; }
 .editor { flex: 1; min-width: 0; }
 .side { display: flex; flex: none; flex-direction: column; gap: 14px; width: 340px; }
 @media (max-width: 1000px) {

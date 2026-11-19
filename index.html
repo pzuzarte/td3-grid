@@ -24,6 +24,12 @@
   <label>Scale
     <select id="scale"></select>
   </label>
+  <label class="check" title="Shows only the notes in the key on the grid. Notes already in the pattern always show.">
+    <input id="key-only" type="checkbox" checked> Key notes only
+  </label>
+  <label class="check" title="When on, changing the key moves the pattern into the new key. When off, notes stay where they are.">
+    <input id="move-notes" type="checkbox" checked> Move notes with key
+  </label>
   <div class="spacer"></div>
   <label title="Where the page plays the pattern, and sends and reads patterns">TD-3
     <select id="output"></select>
@@ -154,7 +160,8 @@
 
     <h3>Writing a pattern</h3>
     <ul>
-      <li><b>Notes</b>: click a square for that note, and click it again for a rest. Drag along to draw several. The rows are the TD-3's 13 keys, C to the high C. Notes in the key are shaded.</li>
+      <li><b>Notes</b>: click a square for that note, and click it again for a rest. Drag along to draw several. The rows are the TD-3's 13 keys, C to the high C, in the order of its keyboard, whatever the key.</li>
+      <li><b>Key</b> and <b>Scale</b>: with <b>Key notes only</b> on, the grid shows just the notes in that key, plus any notes already in the pattern. Turn it off to see all 13, with the key's notes shaded. With <b>Move notes with key</b> on, changing the key moves the whole pattern into the new key, by the nearest way up or down that fits the TD-3's range.</li>
       <li><b>Oct</b>: moves that step's note down or up an octave, like the TD-3's Down and Up keys, for three octaves in all.</li>
       <li><b>Accent</b>: plays that note louder and brighter.</li>
       <li><b>Slide</b>: glides from that note into the next one.</li>
