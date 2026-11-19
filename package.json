@@ -1,0 +1,8 @@
+{
+  "name": "td3-grid",
+  "private": true,
+  "description": "A pattern grid, library and transfer tool for the Behringer TD-3.",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  }
+}

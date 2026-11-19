@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TD-3 Grid</title>
+<link rel="stylesheet" href="style.css">
+<script>
+  // Set before the page draws, so it doesn't flash the other theme.
+  try { if (localStorage.getItem("td3-grid-theme") === "light") document.documentElement.dataset.theme = "light"; } catch {}
+</script>
+<!-- Counts visits anonymously. A fixed version with a checksum, and the tool works if it's blocked. -->
+<script data-goatcounter="https://pzuzarte.goatcounter.com/count"
+        async src="https://gc.zgo.at/count.v5.js"
+        crossorigin="anonymous"
+        integrity="sha384-atnOLvQb9t+jTSipvd75X2yginT4PjVbqDdlJAmxMm+wYElFmeR6EmLP5bYeoRVQ"></script>
+</head>
+<body>
+<header class="bar">
+  <h1>TD-3 Grid</h1>
+  <label title="Shades the notes in this key on the grid, and sets the key of generated lines">Key
+    <select id="root"></select>
+  </label>
+  <label>Scale
+    <select id="scale"></select>
+  </label>
+  <div class="spacer"></div>
+  <label title="Where the page plays the pattern, and sends and reads patterns">TD-3
+    <select id="output"></select>
+  </label>
+  <label title="The channel the TD-3 listens on. It's read from the TD-3 when it connects.">Channel
+    <select id="channel"></select>
+  </label>
+  <span id="midi-state" class="pill">MIDI: starting</span>
+  <button id="midi-retry" type="button" hidden>Allow MIDI</button>
+  <button id="theme-toggle" type="button" title="Switch between dark and light mode">Light mode</button>
+  <button id="help-open" type="button" title="Help (press ?)">Help</button>
+</header>
+
+<section class="bar tools" aria-label="Pattern">
+  <button id="play" class="toggle" type="button" aria-pressed="false" title="Plays the pattern on the TD-3 from this page (Space)">Play</button>
+  <label>Tempo
+    <input id="bpm" type="number" min="40" max="300" step="1" value="125">
+  </label>
+  <label title="How many steps play, from 1 to 16">Steps
+    <input id="length" type="number" min="1" max="16" step="1" value="16">
+  </label>
+  <button id="triplet" class="toggle" type="button" aria-pressed="false" title="Plays the steps as triplets, three to each beat, as the TD-3's triplet mode does">Triplets</button>
+  <label class="check" title="Plays each note you add on the TD-3">
+    <input id="hear" type="checkbox" checked> Hear notes
+  </label>
+  <span class="divider" aria-hidden="true"></span>
+  <div class="button-pair" role="group" aria-label="Transpose">
+    <button id="down-semitone" type="button" title="Moves every note down a semitone">-1</button>
+    <button id="up-semitone" type="button" title="Moves every note up a semitone">+1</button>
+  </div>
+  <div class="button-pair" role="group" aria-label="Octave">
+    <button id="down-octave" type="button" title="Moves every note down an octave">Oct -</button>
+    <button id="up-octave" type="button" title="Moves every note up an octave">Oct +</button>
+  </div>
+  <div class="button-pair" role="group" aria-label="Shift">
+    <button id="shift-left" type="button" title="Moves every step one to the left, round to the end">&lt; Shift</button>
+    <button id="shift-right" type="button" title="Moves every step one to the right, round to the start">Shift &gt;</button>
+  </div>
+  <span class="divider" aria-hidden="true"></span>
+  <button id="generate" type="button" title="Replaces the pattern with a new acid line in the key. Undo brings the old one back.">Generate</button>
+  <button id="undo" type="button" title="Undo (Ctrl+Z)" disabled>Undo</button>
+  <button id="redo" type="button" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
+  <button id="clear" type="button">Clear</button>
+</section>
+
+<div class="main">
+  <div class="editor">
+    <div id="grid" class="grid" role="grid" aria-label="Notes"></div>
+    <div id="lanes" class="grid lanes" aria-label="Step settings"></div>
+    <p class="hint">Click a square for a note, and again for a rest. Drag to draw. Under each step: <b>Oct</b> moves its note down or up an octave, <b>Accent</b> plays it harder, <b>Slide</b> glides into the next note, and <b>Step</b> makes it a note, a tie that holds the note before, or a rest.</p>
+  </div>
+
+  <aside class="side">
+    <section class="card" aria-labelledby="transfer-title">
+      <h2 id="transfer-title">On the TD-3</h2>
+      <div class="row">
+        <label>Group
+          <select id="group"></select>
+        </label>
+        <label>Pattern
+          <select id="slot"></select>
+        </label>
+      </div>
+      <div class="row">
+        <button id="read" type="button" title="Loads that pattern from the TD-3 into the grid. Undo brings back what was there.">Read</button>
+        <button id="send" type="button" title="Writes the grid's pattern to that place on the TD-3, replacing what's there">Send</button>
+        <button id="read-group" type="button" title="Copies all 16 patterns in this group from the TD-3 into the library">Read group to library</button>
+      </div>
+      <p id="put-back-row" class="row" hidden>
+        <button id="put-back" type="button">Put back</button>
+        <small id="put-back-text"></small>
+      </p>
+    </section>
+
+    <section class="card library" aria-labelledby="library-title">
+      <h2 id="library-title">Library</h2>
+      <div class="row">
+        <input id="name" type="text" maxlength="40" placeholder="Pattern name" aria-label="Pattern name">
+        <button id="save" type="button" title="Saves the grid's pattern in the library under this name">Save</button>
+        <button id="save-new" type="button" title="Saves it as a new library pattern, keeping the one it was loaded from">Save as new</button>
+      </div>
+      <input id="search" type="search" placeholder="Search" aria-label="Search the library">
+      <ul id="library" class="library-list"></ul>
+      <p id="library-empty" class="muted">No saved patterns yet. Save one, or read a group from the TD-3.</p>
+      <div class="row">
+        <button id="export-syx" type="button" title="Downloads the grid's pattern as a .syx file for the chosen place on the TD-3">Download .syx</button>
+        <button id="export" type="button" title="Downloads the whole library as a file">Back up</button>
+        <button id="import" type="button" title="Adds patterns from a library backup or .syx file">Import</button>
+        <input id="import-file" type="file" accept=".json,.syx,application/json" hidden>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<footer class="bar foot">
+  <p id="status" class="status" role="status" aria-live="polite"></p>
+</footer>
+
+<dialog id="confirm" class="confirm" aria-labelledby="confirm-text">
+  <p id="confirm-text"></p>
+  <div class="row end">
+    <button id="confirm-cancel" type="button">Cancel</button>
+    <button id="confirm-ok" class="primary" type="button">Replace</button>
+  </div>
+</dialog>
+
+<dialog id="help" class="help" aria-labelledby="help-title">
+  <div class="help-head">
+    <h2 id="help-title">TD-3 Grid help</h2>
+    <button id="help-close" type="button">Close</button>
+  </div>
+  <div class="help-body" tabindex="0">
+    <p>A pattern editor and library for the Behringer TD-3, TD-3-MO and the rest of the TD-3 family. It talks to the TD-3 over USB, and needs a current Chrome or Edge. It's unofficial and not affiliated with Behringer. Your patterns stay in your browser.</p>
+    <p>The pattern format comes from Brad Isbell's <a href="https://303patterns.com/td3-midi.html" target="_blank" rel="noopener">unofficial notes on the TD-3's MIDI</a>. His own editor is at <a href="https://303patterns.com/" target="_blank" rel="noopener">303patterns.com</a>.</p>
+    <p>Visits to this page are counted anonymously with <a href="https://www.goatcounter.com/" target="_blank" rel="noopener">GoatCounter</a>, which uses no cookies. It never receives your patterns.</p>
+
+    <h3>Set up</h3>
+    <ol>
+      <li>Connect the TD-3 to the computer with USB and turn it on. Patterns can only be sent and read over USB.</li>
+      <li>Allow MIDI access when asked, including the extra access for SysEx, which patterns need. If it says MIDI blocked, click the icon to the left of the address, set <b>MIDI devices</b> to Allow, then click <b>Allow MIDI</b>.</li>
+      <li>Check the TD-3 is chosen at the top. The page reads its channel from it.</li>
+    </ol>
+
+    <h3>Writing a pattern</h3>
+    <ul>
+      <li><b>Notes</b>: click a square for that note, and click it again for a rest. Drag along to draw several. The rows are the TD-3's 13 keys, C to the high C. Notes in the key are shaded.</li>
+      <li><b>Oct</b>: moves that step's note down or up an octave, like the TD-3's Down and Up keys, for three octaves in all.</li>
+      <li><b>Accent</b>: plays that note louder and brighter.</li>
+      <li><b>Slide</b>: glides from that note into the next one.</li>
+      <li><b>Step</b>: a note, a tie, which holds the note before it for another step, or a rest. A pattern can't start with a tie.</li>
+      <li><b>Steps</b> sets how many play, up to 16. <b>Triplets</b> plays them three to a beat.</li>
+      <li><b>-1</b> and <b>+1</b> move every note a semitone, and <b>Oct -</b> and <b>Oct +</b> an octave, as far as the TD-3's range allows. <b>Shift</b> moves the steps round.</li>
+      <li><b>Generate</b> writes a new acid line in the key. <b>Undo</b> brings back what was there.</li>
+      <li><b>Play</b> plays the pattern on the TD-3 from this page, at the page's tempo, so you can hear it before sending it. Space starts and stops it.</li>
+    </ul>
+
+    <h3>The TD-3's patterns</h3>
+    <ul>
+      <li>The TD-3 has four groups, each with 16 patterns, A1 to A8 and B1 to B8. Choose one under <b>On the TD-3</b>.</li>
+      <li><b>Read</b> loads that pattern into the grid.</li>
+      <li><b>Send</b> writes the grid's pattern there, after asking. The page reads what was there first, so <b>Put back</b> can restore it, and reads it again afterwards to check it arrived.</li>
+      <li><b>Read group to library</b> copies all 16 of a group's patterns into the library, as a backup.</li>
+    </ul>
+
+    <h3>Library</h3>
+    <ul>
+      <li><b>Save</b> keeps the grid's pattern under its name. Click a pattern in the list to load it, and Send it from there.</li>
+      <li><b>Back up</b> downloads the whole library as a file, and <b>Import</b> adds patterns from a backup or a .syx file. <b>Download .syx</b> saves the grid's pattern for the chosen place, for other SysEx tools.</li>
+      <li>The library is kept in this browser. Back it up now and then, as clearing the browser's data clears it.</li>
+    </ul>
+
+    <h3>Keys</h3>
+    <ul>
+      <li><b>Space</b> play or stop, <b>Ctrl+Z</b> undo, <b>Ctrl+Shift+Z</b> redo, <b>?</b> this help.</li>
+    </ul>
+  </div>
+</dialog>
+
+<script src="td3.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
