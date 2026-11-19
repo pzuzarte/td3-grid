@@ -643,7 +643,9 @@ function onReadGroup() {
 
 /* ---------- Playing ---------- */
 
-const play = { on: false, step: 0, nextTime: 0, stopTimer: null, offs: [], absorbed: new Set() };
+const play = { on: false, step: 0, pulse: 0, nextTime: 0, stopTimer: null, offs: [], absorbed: new Set() };
+const PPQ = 960; // Pulses to a beat, as the other grids count them for Sync.
+const pulsesPerStep = () => (state.pattern.triplet ? PPQ / 6 : PPQ / 4);
 
 const stepMs = () => (60000 / state.bpm / 4) * (state.pattern.triplet ? 2 / 3 : 1);
 
@@ -705,6 +707,7 @@ function tick() {
     const delay = Math.max(0, play.nextTime - performance.now());
     setTimeout(() => showStep(play.on ? shown : null), delay);
     play.nextTime += stepMs();
+    play.pulse += pulsesPerStep();
     play.step = index + 1;
   }
   play.offs = play.offs.filter((off) => off.at > performance.now() - 1000);
@@ -728,19 +731,22 @@ function everyTick(callback) {
   return () => worker.terminate();
 }
 
-function startPlaying() {
+function startPlaying({ startAt = null, fromLink = false } = {}) {
   if (!output) {
     setStatus("Connect the TD-3 to play the pattern.", true);
-    return;
+    return false;
   }
   play.on = true;
   play.step = 0;
+  play.pulse = 0;
   play.absorbed.clear();
-  play.nextTime = performance.now() + 30;
+  const shared = fromLink ? null : link.announcePlay(state.bpm);
+  play.nextTime = startAt ?? shared ?? performance.now() + 30;
   play.stopTimer = everyTick(tick);
   tick();
   $("play").setAttribute("aria-pressed", "true");
   $("play").textContent = "Stop";
+  return true;
 }
 
 function stopIfPlaying() {
@@ -760,9 +766,48 @@ function stopIfPlaying() {
 }
 
 function togglePlay() {
-  if (play.on) stopIfPlaying();
-  else startPlaying();
+  if (play.on) {
+    stopIfPlaying();
+    link.announceStop();
+    setStatus("Stopped.");
+  } else {
+    startPlaying();
+  }
 }
+
+function renderPeers(names) {
+  const pill = $("sync-peers");
+  pill.hidden = !$("sync").checked;
+  pill.textContent = names.length ? `Linked: ${names.join(", ")}` : "Not linked";
+  pill.className = `pill ${names.length ? "ok" : ""}`;
+  pill.title = names.length ? "Play, stop and tempo are shared with these pages." : "No other grid is open in this browser with Sync on.";
+}
+
+// Plays together with the other grids when they're open in this browser. See sync.js.
+const link = Sync.connect({
+  name: "TD-3 Grid",
+  checkbox: $("sync"),
+  storageKey: "td3-grid-sync",
+  start({ bpm, at }) {
+    stopIfPlaying();
+    state.bpm = bpm;
+    $("bpm").value = String(bpm);
+    return startPlaying({ startAt: at, fromLink: true });
+  },
+  stop: () => stopIfPlaying(),
+  tempo({ bpm, at, pulse }) {
+    state.bpm = bpm;
+    $("bpm").value = String(bpm);
+    if (!play.on || !Number.isFinite(pulse)) return;
+    play.nextTime = Sync.aligned({
+      nextTime: play.nextTime, nextPulse: play.pulse, at, pulse, msPerPulse: stepMs() / pulsesPerStep(), pulsesPerBeat: PPQ,
+    });
+  },
+  status: (message, isError) => setStatus(message, isError),
+  peers: renderPeers,
+});
+
+const announceTempo = () => link.announceTempo({ bpm: state.bpm, nextTime: play.nextTime, nextPulse: play.on ? play.pulse : 0 });
 
 // A short note when a step is drawn, so you hear it.
 function hear(item) {
@@ -956,6 +1001,7 @@ function bindControls() {
     state.bpm = Number.isFinite(bpm) ? Math.min(300, Math.max(40, Math.round(bpm))) : 125;
     $("bpm").value = String(state.bpm);
     save();
+    if (play.on) announceTempo();
   };
   $("length").onchange = () => {
     const length = Math.min(16, Math.max(1, Math.round(Number($("length").value)) || 16));
@@ -1065,5 +1111,6 @@ buildLanes();
 fillSelects();
 setTheme(document.documentElement.dataset.theme === "light");
 bindControls();
+renderPeers([]);
 render();
 startMidi();

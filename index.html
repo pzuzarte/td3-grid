@@ -52,6 +52,10 @@
   <label class="check" title="Plays each note you add on the TD-3">
     <input id="hear" type="checkbox" checked> Hear notes
   </label>
+  <label class="check" title="Plays together with the other grids when they're open in this browser. Play, stop and tempo are shared.">
+    <input id="sync" type="checkbox"> Sync
+  </label>
+  <span id="sync-peers" class="pill" role="status" hidden></span>
   <span class="divider" aria-hidden="true"></span>
   <div class="button-pair" role="group" aria-label="Transpose">
     <button id="down-semitone" type="button" title="Moves every note down a semitone">-1</button>
@@ -167,6 +171,7 @@
       <li><b>-1</b> and <b>+1</b> move every note a semitone, and <b>Oct -</b> and <b>Oct +</b> an octave, as far as the TD-3's range allows. <b>Shift</b> moves the steps round.</li>
       <li><b>Generate</b> writes a new acid line in the key. <b>Undo</b> brings back what was there.</li>
       <li><b>Play</b> plays the pattern on the TD-3 from this page, at the page's tempo, so you can hear it before sending it. Space starts and stops it.</li>
+      <li><b>Sync</b> plays this page together with S-1 Grid, MPC Grid, Protein Grid and Bass Station Grid when they're open in the same browser, each with its MIDI connected and Sync on. Pressing Play or Stop on any of them starts or stops them all, from the start of their patterns, at the tempo of the page you pressed. Changing the tempo on one changes them all. The badge beside it shows which pages are linked.</li>
     </ul>
 
     <h3>The TD-3's patterns</h3>
@@ -192,6 +197,7 @@
   </div>
 </dialog>
 
+<script src="sync.js"></script>
 <script src="td3.js"></script>
 <script src="app.js"></script>
 </body>
