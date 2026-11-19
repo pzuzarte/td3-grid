@@ -164,10 +164,11 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .cell.beat { background: var(--cell-beat); }
 .cell.in-key { background: var(--root-cell); }
 .cell.in-key.beat { background: var(--root-cell-beat); }
-.cell:hover { background: var(--cell-hover); }
-.cell.on { background: var(--accent); }
+.cell:not(.on):not(.tied):hover { background: var(--cell-hover); }
+/* A note's own colour wins over the key and beat shading. */
+.grid .cell.on { background: var(--accent); }
 .cell.on.accented { box-shadow: inset 0 0 0 2px var(--strong); }
-.cell.tied { background: rgba(var(--on), 0.45); border-radius: 0 3px 3px 0; }
+.grid .cell.tied { background: rgba(var(--on), 0.45); border-radius: 0 3px 3px 0; }
 .cell { position: relative; }
 .cell.slid::after { content: ""; position: absolute; right: -3px; bottom: 3px; left: 40%; height: 3px; background: var(--strong); border-radius: 2px; }
 .cell.up::before, .cell.down::before { position: absolute; top: 2px; left: 4px; color: var(--accent-text); font-size: 9px; font-weight: 700; line-height: 1; }
