@@ -143,3 +143,31 @@ test("generated lines stay in the key and in range", () => {
     assert.deepEqual(TD3.decode(TD3.encode(made, 0, 0)).pattern, made);
   }
 });
+
+test("in C the grid is the TD-3's own keyboard, with its Down and Up keys", () => {
+  for (let octave = -1; octave <= 1; octave += 1) {
+    for (let note = 0; note <= 12; note += 1) {
+      assert.deepEqual(TD3.onGrid({ note, octave }, 0), { row: note, shift: octave });
+      assert.deepEqual(TD3.fromGrid(note, octave, 0), { note, octave });
+    }
+  }
+  assert.equal(TD3.rowName(12, 0), "C'");
+});
+
+test("in other keys the rows run from the root to the root above", () => {
+  assert.deepEqual([0, 1, 3, 12].map((row) => TD3.rowName(row, 9)), ["A", "A#", "C", "A'"]);
+  for (let root = 1; root < 12; root += 1) {
+    // Every note the TD-3 can play has a place on the grid, and comes back the same.
+    for (let value = 0; value <= 36; value += 1) {
+      const item = TD3.fromHeight(value);
+      const { row, shift } = TD3.onGrid(item, root);
+      assert.ok(row >= 0 && row <= 12 && shift >= -2 && shift <= 2);
+      assert.equal(TD3.height(TD3.fromGrid(row, shift, root)), value);
+    }
+    // The bottom row is the root.
+    assert.equal(TD3.height(TD3.fromGrid(0, 0, root)) % 12, root);
+  }
+  // Octave moves past the TD-3's range are refused.
+  assert.equal(TD3.fromGrid(0, -1, 9), null);
+  assert.equal(TD3.fromGrid(12, 1, 2), null);
+});

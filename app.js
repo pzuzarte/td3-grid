@@ -12,20 +12,18 @@ const REPLY_TIMEOUT_MS = 1500;
 const SETTLE_MS = 250; // A pause after writing a pattern, before reading it back.
 const LOOKAHEAD_MS = 120;
 const TICK_MS = 25;
-const ROWS = Array.from({ length: 13 }, (_, index) => 12 - index); // High C at the top.
 
 const state = {
   pattern: TD3.emptyPattern(),
   name: "",
   libraryId: null,
   bpm: 125,
-  root: 9,
-  scale: "minor",
+  root: 0,
+  scale: "chromatic",
   group: 0,
   slot: 0,
   channel: 1,
   hear: true,
-  keyOnly: true,
   moveWithKey: true,
   outputName: "",
   undo: [],
@@ -60,7 +58,7 @@ function writeJson(key, value) {
 
 function save() {
   const { undo, redo, ...kept } = state;
-  writeJson(STORAGE_KEY, kept);
+  writeJson(STORAGE_KEY, { ...kept, rowsFollowKey: true });
 }
 
 function restore() {
@@ -70,12 +68,12 @@ function restore() {
   state.libraryId = typeof saved.libraryId === "string" ? saved.libraryId : null;
   if (Number.isFinite(saved.bpm)) state.bpm = Math.min(300, Math.max(40, saved.bpm));
   if (Number.isInteger(saved.root) && saved.root >= 0 && saved.root < 12) state.root = saved.root;
-  if (TD3.SCALES[saved.scale]) state.scale = saved.scale;
+  // Pages saved before the mode chose the rows start with all notes showing.
+  if (TD3.SCALES[saved.scale] && saved.rowsFollowKey) state.scale = saved.scale;
   if (Number.isInteger(saved.group) && saved.group >= 0 && saved.group < TD3.GROUPS) state.group = saved.group;
   if (Number.isInteger(saved.slot) && saved.slot >= 0 && saved.slot < TD3.SLOTS) state.slot = saved.slot;
   if (Number.isInteger(saved.channel) && saved.channel >= 1 && saved.channel <= 16) state.channel = saved.channel;
   if (typeof saved.hear === "boolean") state.hear = saved.hear;
-  if (typeof saved.keyOnly === "boolean") state.keyOnly = saved.keyOnly;
   if (typeof saved.moveWithKey === "boolean") state.moveWithKey = saved.moveWithKey;
   if (typeof saved.outputName === "string") state.outputName = saved.outputName;
   library = cleanLibrary(readJson(LIBRARY_KEY, []));
@@ -143,20 +141,35 @@ function withStep(index, edit) {
 
 const keyNotes = () => new Set(TD3.SCALES[state.scale].map((degree) => (state.root + degree) % 12));
 
-// The grid's rows, high C first: every key, or just those in the key and the pattern.
+// The row and octave move a step was drawn with, as the root a row up and the root above
+// are the same pitch. Used while it still matches the step's note.
+let drawnAt = [];
+
+function gridPlace(item, index) {
+  const before = state.pattern.steps[index - 1];
+  if (item.kind === "tie" && before && before.kind !== "rest") return gridPlace(before, index - 1);
+  const hint = drawnAt[index];
+  const back = hint && TD3.fromGrid(hint.row, hint.shift, state.root);
+  if (back && TD3.height(back) === TD3.height(item)) return hint;
+  return TD3.onGrid(item, state.root);
+}
+
+// The grid's rows, the root above first: the notes of the key and mode, and any the
+// pattern already uses.
 function visibleRows() {
-  if (!state.keyOnly) return ROWS;
   const inKey = keyNotes();
-  const used = new Set(state.pattern.steps.filter((item) => item.kind !== "rest").map((item) => item.note));
-  return ROWS.filter((note) => inKey.has(note % 12) || used.has(note));
+  const used = new Set(state.pattern.steps.map((item, index) => (item.kind === "rest" ? null : gridPlace(item, index).row)));
+  return Array.from({ length: 13 }, (_, index) => 12 - index)
+    .filter((row) => inKey.has((state.root + row) % 12) || used.has(row));
 }
 
 let shownRows = "";
 
 function buildRows() {
   const rows = visibleRows();
-  if (rows.join() === shownRows) return;
-  shownRows = rows.join();
+  const shape = `${state.root}:${rows.join()}`;
+  if (shape === shownRows) return;
+  shownRows = shape;
   const grid = $("grid");
   const cells = [document.createElement("span")];
   for (let index = 0; index < TD3.STEPS; index += 1) {
@@ -166,18 +179,18 @@ function buildRows() {
     number.dataset.step = String(index);
     cells.push(number);
   }
-  for (const note of rows) {
+  for (const row of rows) {
     const label = document.createElement("span");
     label.className = "label";
-    label.dataset.note = String(note);
-    label.textContent = TD3.KEYS[note];
+    label.dataset.row = String(row);
+    label.textContent = TD3.rowName(row, state.root);
     cells.push(label);
     for (let index = 0; index < TD3.STEPS; index += 1) {
       const cell = document.createElement("button");
       cell.type = "button";
       cell.className = "cell";
       cell.dataset.step = String(index);
-      cell.dataset.note = String(note);
+      cell.dataset.row = String(row);
       if (index % 4 === 0) cell.classList.add("beat");
       cells.push(cell);
     }
@@ -233,24 +246,25 @@ function laneText(cell, long, short = long) {
 function render() {
   buildRows();
   const { steps, length } = state.pattern;
-  const inKey = keyNotes();
+  const isRoot = (row) => row === 0 || row === 12;
+  const places = steps.map((item, index) => gridPlace(item, index));
   document.querySelectorAll("#grid .label").forEach((label) => {
-    label.classList.toggle("root", Number(label.dataset.note) % 12 === state.root);
+    label.classList.toggle("root", isRoot(Number(label.dataset.row)));
   });
   document.querySelectorAll("#grid .cell").forEach((cell) => {
     const index = Number(cell.dataset.step);
-    const note = Number(cell.dataset.note);
+    const row = Number(cell.dataset.row);
     const item = steps[index];
-    const here = item.kind !== "rest" && item.note === note;
-    cell.classList.toggle("in-key", inKey.has(note % 12));
+    const here = item.kind !== "rest" && places[index].row === row;
+    cell.classList.toggle("in-key", isRoot(row));
     cell.classList.toggle("on", here && item.kind === "note");
     cell.classList.toggle("tied", here && item.kind === "tie");
     cell.classList.toggle("accented", here && item.kind === "note" && item.accent);
     cell.classList.toggle("slid", here && item.kind === "note" && item.slide);
-    cell.classList.toggle("up", here && item.kind === "note" && item.octave > 0);
-    cell.classList.toggle("down", here && item.kind === "note" && item.octave < 0);
+    cell.classList.toggle("up", here && item.kind === "note" && places[index].shift > 0);
+    cell.classList.toggle("down", here && item.kind === "note" && places[index].shift < 0);
     cell.classList.toggle("off-length", index >= length);
-    cell.setAttribute("aria-label", `Step ${index + 1}, ${TD3.KEYS[note]}: ${here ? describe(item) : "empty"}`);
+    cell.setAttribute("aria-label", `Step ${index + 1}, ${TD3.rowName(row, state.root)}: ${here ? describe(item) : "empty"}`);
   });
   document.querySelectorAll("#lanes .lane-cell").forEach((cell) => {
     const index = Number(cell.dataset.step);
@@ -260,12 +274,15 @@ function render() {
     cell.classList.remove("on", "down", "tie", "rest");
     cell.classList.toggle("off-length", index >= length);
     if (lane === "octave") {
+      const { shift } = places[index];
       if (!note) laneText(cell, "");
-      else if (item.octave > 0) laneText(cell, "Up");
-      else if (item.octave < 0) laneText(cell, "Down", "Dn");
+      else if (shift > 1) laneText(cell, "Up 2", "U2");
+      else if (shift > 0) laneText(cell, "Up");
+      else if (shift < -1) laneText(cell, "Down 2", "D2");
+      else if (shift < 0) laneText(cell, "Down", "Dn");
       else laneText(cell, "-");
-      cell.classList.toggle("on", note && item.octave > 0);
-      cell.classList.toggle("down", note && item.octave < 0);
+      cell.classList.toggle("on", note && shift > 0);
+      cell.classList.toggle("down", note && shift < 0);
       cell.disabled = !note;
       cell.title = note ? "Octave: click for up, down or neither" : "";
     } else if (lane === "accent" || lane === "slide") {
@@ -289,12 +306,16 @@ function render() {
 
 /* ---------- Editing with the mouse ---------- */
 
-let drawing = null; // { note } while dragging notes onto steps.
+let drawing = null; // { row } while dragging notes onto steps.
 
-function placeNote(index, note) {
+// A note on a row of the grid, keeping the step's octave move where the TD-3 can play it.
+function placeNote(index, row) {
   return withStep(index, (item) => {
-    if (item.kind === "rest") Object.assign(item, { accent: false, slide: false, octave: 0 });
-    Object.assign(item, { kind: "note", note });
+    let shift = item.kind === "rest" ? 0 : gridPlace(item, index).shift;
+    if (!TD3.fromGrid(row, shift, state.root)) shift = 0;
+    if (item.kind === "rest") Object.assign(item, { accent: false, slide: false });
+    Object.assign(item, { kind: "note" }, TD3.fromGrid(row, shift, state.root));
+    drawnAt[index] = { row, shift };
   });
 }
 
@@ -303,16 +324,16 @@ function onGridDown(event) {
   if (!cell) return;
   event.preventDefault();
   const index = Number(cell.dataset.step);
-  const note = Number(cell.dataset.note);
+  const row = Number(cell.dataset.row);
   const item = state.pattern.steps[index];
-  if (item.kind === "note" && item.note === note) {
+  if (item.kind === "note" && gridPlace(item, index).row === row) {
     change(withStep(index, (step) => { step.kind = "rest"; }), `Step ${index + 1} is now a rest.`);
-    drawing = { note: null };
+    drawing = { row: null };
   } else {
-    change(placeNote(index, note));
+    change(placeNote(index, row));
     setStatus(`Step ${index + 1}: ${TD3.keyName(state.pattern.steps[index])}.`);
     hear(state.pattern.steps[index]);
-    drawing = { note, last: index };
+    drawing = { row, last: index };
   }
   cell.releasePointerCapture?.(event.pointerId);
 }
@@ -325,7 +346,7 @@ function onGridOver(event) {
   if (index === drawing.last) return;
   drawing.last = index;
   const item = state.pattern.steps[index];
-  if (drawing.note === null) {
+  if (drawing.row === null) {
     if (item.kind !== "rest") {
       state.pattern = withStep(index, (step) => { step.kind = "rest"; });
       render();
@@ -333,7 +354,7 @@ function onGridOver(event) {
     return;
   }
   // Drawing on adds to the change already in the undo list.
-  state.pattern = placeNote(index, drawing.note);
+  state.pattern = placeNote(index, drawing.row);
   hear(state.pattern.steps[index]);
   render();
 }
@@ -345,8 +366,18 @@ function onLaneClick(event) {
   const lane = cell.dataset.lane;
   const item = state.pattern.steps[index];
   if (lane === "octave") {
-    const octave = item.octave === 0 ? 1 : item.octave === 1 ? -1 : 0;
-    change(withStep(index, (step) => { step.octave = octave; }), `Step ${index + 1}: ${TD3.keyName({ ...item, octave })}.`);
+    // Up, down, then neither, skipping a move past the TD-3's range.
+    const { row, shift } = gridPlace(item, index);
+    const order = [0, 1, 2, -1, -2];
+    const move = [1, 2, 3, 4].map((ahead) => order[(order.indexOf(shift) + ahead) % order.length])
+      .find((option) => TD3.fromGrid(row, option, state.root));
+    const next = move === undefined ? null : TD3.fromGrid(row, move, state.root);
+    if (!next) {
+      setStatus(`Step ${index + 1} can't move an octave in this key without going past the TD-3's range.`, true);
+      return;
+    }
+    drawnAt[index] = { row, shift: move };
+    change(withStep(index, (step) => { Object.assign(step, next); }), `Step ${index + 1}: ${TD3.keyName(next)}.`);
     hear(state.pattern.steps[index]);
   } else if (lane === "accent" || lane === "slide") {
     change(withStep(index, (step) => { step[lane] = !step[lane]; }),
@@ -356,7 +387,10 @@ function onLaneClick(event) {
     const order = index === 0 || before.kind === "rest" ? ["note", "rest"] : ["note", "tie", "rest"];
     const kind = order[(order.indexOf(item.kind) + 1) % order.length];
     change(withStep(index, (step) => {
-      if (kind === "note" && step.kind === "rest") Object.assign(step, { note: before?.kind !== "rest" && before ? before.note : state.root, accent: false, slide: false });
+      if (kind === "note" && step.kind === "rest") {
+        const from = before && before.kind !== "rest" ? { note: before.note, octave: before.octave } : TD3.fromGrid(0, 0, state.root);
+        Object.assign(step, from, { accent: false, slide: false });
+      }
       step.kind = kind;
     }), `Step ${index + 1} is now a ${kind}.`);
   }
@@ -876,7 +910,8 @@ async function importFile(file) {
 
 function fillSelects() {
   $("root").replaceChildren(...TD3.KEYS.slice(0, 12).map((name, index) => new Option(name, String(index))));
-  $("scale").replaceChildren(...Object.keys(TD3.SCALES).map((name) => new Option(name[0].toUpperCase() + name.slice(1), name)));
+  $("scale").replaceChildren(...Object.keys(TD3.SCALES).map((name) =>
+    new Option(name === "chromatic" ? "All notes" : name[0].toUpperCase() + name.slice(1), name)));
   $("channel").replaceChildren(...Array.from({ length: 16 }, (_, index) => new Option(String(index + 1), String(index + 1))));
   $("group").replaceChildren(...Array.from({ length: TD3.GROUPS }, (_, index) => new Option(String(index + 1), String(index))));
   $("slot").replaceChildren(...Array.from({ length: TD3.SLOTS }, (_, index) => new Option(TD3.slotName(index), String(index))));
@@ -887,7 +922,6 @@ function fillSelects() {
   $("slot").value = String(state.slot);
   $("bpm").value = String(state.bpm);
   $("hear").checked = state.hear;
-  $("key-only").checked = state.keyOnly;
   $("move-notes").checked = state.moveWithKey;
   $("name").value = state.name;
 }
@@ -943,9 +977,11 @@ function bindControls() {
   $("shift-left").onclick = () => change(TD3.rotate(state.pattern, -1), "Moved the steps left.");
   $("shift-right").onclick = () => change(TD3.rotate(state.pattern, 1), "Moved the steps right.");
   $("generate").onclick = () => {
-    const made = TD3.generate({ root: state.root, scale: state.scale });
+    // With all notes showing, lines are written in the minor scale.
+    const scale = state.scale === "chromatic" ? "minor" : state.scale;
+    const made = TD3.generate({ root: state.root, scale });
     change({ ...made, length: state.pattern.length, triplet: state.pattern.triplet },
-      `A new line in ${TD3.KEYS[state.root]} ${state.scale}. Undo brings the old one back.`);
+      `A new line in ${TD3.KEYS[state.root]} ${scale}. Undo brings the old one back.`);
   };
   $("undo").onclick = () => undoRedo(state.undo, state.redo, "Undone.");
   $("redo").onclick = () => undoRedo(state.redo, state.undo, "Redone.");
@@ -970,7 +1006,6 @@ function bindControls() {
     render();
   };
   $("scale").onchange = () => { state.scale = $("scale").value; save(); render(); };
-  $("key-only").onchange = () => { state.keyOnly = $("key-only").checked; save(); render(); };
   $("move-notes").onchange = () => { state.moveWithKey = $("move-notes").checked; save(); };
   $("output").onchange = () => {
     stopIfPlaying();

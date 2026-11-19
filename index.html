@@ -18,14 +18,11 @@
 <body>
 <header class="bar">
   <h1>TD-3 Grid</h1>
-  <label title="Shades the notes in this key on the grid, and sets the key of generated lines">Key
+  <label title="The grid's rows start on this note, and generated lines are in this key">Key
     <select id="root"></select>
   </label>
-  <label>Scale
+  <label title="Which notes the grid shows between the root and the root an octave above">Mode
     <select id="scale"></select>
-  </label>
-  <label class="check" title="Shows only the notes in the key on the grid. Notes already in the pattern always show.">
-    <input id="key-only" type="checkbox" checked> Key notes only
   </label>
   <label class="check" title="When on, changing the key moves the pattern into the new key. When off, notes stay where they are.">
     <input id="move-notes" type="checkbox" checked> Move notes with key
@@ -160,9 +157,9 @@
 
     <h3>Writing a pattern</h3>
     <ul>
-      <li><b>Notes</b>: click a square for that note, and click it again for a rest. Drag along to draw several. The rows are the TD-3's 13 keys, C to the high C, in the order of its keyboard, whatever the key.</li>
-      <li><b>Key</b> and <b>Scale</b>: with <b>Key notes only</b> on, the grid shows just the notes in that key, plus any notes already in the pattern. Turn it off to see all 13, with the key's notes shaded. With <b>Move notes with key</b> on, changing the key moves the whole pattern into the new key, by the nearest way up or down that fits the TD-3's range.</li>
-      <li><b>Oct</b>: moves that step's note down or up an octave, like the TD-3's Down and Up keys, for three octaves in all.</li>
+      <li><b>Notes</b>: click a square for that note, and click it again for a rest. Drag along to draw several.</li>
+      <li><b>Key</b> and <b>Mode</b>: the rows run from the key's root note at the bottom to the same note an octave up at the top, with the root rows shaded. <b>All notes</b> shows all 13; a mode such as Minor shows just its notes. Notes already in the pattern always keep their row. In C with All notes, the rows are the TD-3's own keys, C to the high C. With <b>Move notes with key</b> on, changing the key moves the whole pattern into the new key, by the nearest way up or down that fits the TD-3's range.</li>
+      <li><b>Oct</b>: moves that step's note down or up an octave from the grid, for three octaves in all. In C these are the TD-3's own Down and Up keys. In other keys, a move that would go past the TD-3's lowest or highest note is skipped.</li>
       <li><b>Accent</b>: plays that note louder and brighter.</li>
       <li><b>Slide</b>: glides from that note into the next one.</li>
       <li><b>Step</b>: a note, a tie, which holds the note before it for another step, or a rest. A pattern can't start with a tie.</li>

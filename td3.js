@@ -80,6 +80,38 @@ const TD3 = (() => {
   // Semitones above the lowest note, 0 to 36, for moving notes and playing them.
   const height = (item) => (item.octave + 1) * 12 + item.note;
 
+  // The key and octave for a height, using no octave change where it can.
+  function fromHeight(value) {
+    if (value <= 11) return { note: value, octave: -1 };
+    if (value <= 24) return { note: value - 12, octave: 0 };
+    return { note: value - 24, octave: 1 };
+  }
+
+  /* The grid shows an octave from the key's root up to the root above, as rows 0 to 12,
+     and each step's Oct moves its note an octave down or up from there. For C that's the
+     TD-3's own keyboard and Down and Up keys. For other keys the octave is placed as near
+     the middle of the TD-3's range as it goes, so the few notes at the far end of the
+     range are two octaves away from it, and a few moves at the very top or bottom don't fit. */
+  const gridBase = (root) => (root <= 6 ? 12 + root : root);
+
+  function onGrid(item, root) {
+    if (root === 0) return { row: item.note, shift: item.octave };
+    const offset = height(item) - gridBase(root);
+    let shift = 0;
+    if (offset < 0) shift = -Math.ceil(-offset / 12);
+    else if (offset > 12) shift = Math.ceil((offset - 12) / 12);
+    return { row: offset - shift * 12, shift };
+  }
+
+  // The key and octave for a row and octave move, or null if it's past the TD-3's range.
+  function fromGrid(row, shift, root) {
+    if (root === 0) return { note: row, octave: shift };
+    const value = gridBase(root) + row + shift * 12;
+    return value < 0 || value > 36 ? null : fromHeight(value);
+  }
+
+  const rowName = (row, root) => (row === 12 ? `${KEYS[root % 12]}'` : KEYS[(root + row) % 12]);
+
   // A step's pitch as MIDI, for playing it. The TD-3's middle C sounds as MIDI note 36.
   const midiNote = (item) => 24 + height(item);
 
@@ -219,12 +251,12 @@ const TD3 = (() => {
   }
 
   const SCALES = {
+    chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
     minor: [0, 2, 3, 5, 7, 8, 10],
     "minor pentatonic": [0, 3, 5, 7, 10],
     phrygian: [0, 1, 3, 5, 7, 8, 10],
     dorian: [0, 2, 3, 5, 7, 9, 10],
     major: [0, 2, 4, 5, 7, 9, 11],
-    chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
   };
 
   // A new acid line in a key, from a random number source such as Math.random.
@@ -240,19 +272,21 @@ const TD3 = (() => {
       }
       if (index && chance(index % 4 === 0 ? 0.05 : 0.18)) continue;
       // The root is the most likely note, on the beat especially.
-      const degree = chance(index % 4 === 0 ? 0.5 : 0.3) ? 0 : degrees[Math.floor(random() * degrees.length)];
-      let note = (root + degree) % 12;
-      let octave = chance(0.22) ? 1 : chance(0.12) ? -1 : 0;
-      if (note === 0 && octave === 1 && chance(0.5)) { note = 12; octave = 0; }
-      pattern.steps[index] = step({ kind: "note", note, octave, accent: chance(index % 4 === 0 ? 0.4 : 0.2), slide: chance(0.2) });
+      // Rows of the grid's octave from the root, sometimes the root above, and now and then
+      // an octave up or down.
+      let row = chance(index % 4 === 0 ? 0.5 : 0.3) ? 0 : degrees[Math.floor(random() * degrees.length)];
+      if (row === 0 && chance(0.15)) row = 12;
+      const shift = chance(0.2) ? 1 : chance(0.12) ? -1 : 0;
+      const pitch = fromGrid(row, shift, root) || fromGrid(row, 0, root);
+      pattern.steps[index] = step({ kind: "note", ...pitch, accent: chance(index % 4 === 0 ? 0.4 : 0.2), slide: chance(0.2) });
     }
     return pattern;
   }
 
   return {
     GROUPS, KEYS, SCALES, SLOTS, STEPS,
-    cleanPattern, copyPattern, decode, decodeConfig, emptyPattern, encode, fromPitchValue, generate,
-    height, keyName, midiNote, pitchValue, placeName, requestConfig, requestPattern, rotate,
+    cleanPattern, copyPattern, decode, decodeConfig, emptyPattern, encode, fromGrid, fromHeight,
+    fromPitchValue, generate, gridBase, height, keyName, onGrid, rowName, midiNote, pitchValue, placeName, requestConfig, requestPattern, rotate,
     slotName, splitSysex, step, transpose,
   };
 })();
