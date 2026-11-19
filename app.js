@@ -33,7 +33,8 @@ let library = [];
 let midi = null;
 let output = null;
 let accentThreshold = null;
-let putBack = null; // What a Send replaced, so it can be restored.
+let putBack = null; // What a Send or Paste replaced, so it can be restored.
+let copied = null; // A pattern copied from the TD-3, with where it came from.
 let busy = false;
 
 /* ---------- Saving in the browser ---------- */
@@ -466,14 +467,15 @@ async function writePattern(pattern, group, slot) {
 async function withBusy(task) {
   if (busy) return;
   busy = true;
-  document.querySelectorAll("#read, #send, #read-group, #put-back").forEach((button) => { button.disabled = true; });
+  document.querySelectorAll("#read, #send, #read-group, #put-back, #copy, #paste").forEach((button) => { button.disabled = true; });
   try {
     await task();
   } catch (error) {
     setStatus(error.message, true);
   } finally {
     busy = false;
-    document.querySelectorAll("#read, #send, #read-group, #put-back").forEach((button) => { button.disabled = false; });
+    document.querySelectorAll("#read, #send, #read-group, #put-back, #copy").forEach((button) => { button.disabled = false; });
+    renderCopied();
   }
 }
 
@@ -510,22 +512,51 @@ function confirmDialog(text, okText = "Replace") {
   });
 }
 
-function onSend() {
+// Writes a pattern to the chosen place after asking, keeping what was there for Put back.
+function replaceOnTd3(pattern, what, done) {
   withBusy(async () => {
     const group = state.group;
     const slot = state.slot;
     const where = TD3.placeName(group, slot);
-    const ok = await confirmDialog(`Replace ${where} on the TD-3 with the grid's pattern${state.name ? `, "${state.name}"` : ""}? The page keeps what's there now, so Put back can restore it.`);
+    const ok = await confirmDialog(`Replace ${where} on the TD-3 with ${what}? The page keeps what's there now, so Put back can restore it.`);
     if (!ok) return;
     setStatus(`Reading what's in ${where} first...`);
     const before = await readPattern(group, slot);
-    setStatus(`Sending to ${where}...`);
-    await writePattern(state.pattern, group, slot);
+    setStatus(`Writing to ${where}...`);
+    await writePattern(pattern, group, slot);
     putBack = { pattern: before, group, slot };
     $("put-back-text").textContent = `What was in ${where} before`;
     $("put-back-row").hidden = false;
-    setStatus(`Sent to ${where}, and checked. Put back restores what was there.`);
+    setStatus(`${done} ${where}, and checked. Put back restores what was there.`);
   });
+}
+
+function onSend() {
+  replaceOnTd3(state.pattern, `the grid's pattern${state.name ? `, "${state.name}"` : ""}`, "Sent to");
+}
+
+function renderCopied() {
+  $("paste").disabled = busy || !copied;
+  $("copied-text").textContent = copied ? `Copied ${TD3.placeName(copied.group, copied.slot)}` : "Nothing copied";
+}
+
+function onCopy() {
+  withBusy(async () => {
+    const { group, slot } = state;
+    setStatus(`Copying ${place()}...`);
+    copied = { pattern: await readPattern(group, slot), group, slot };
+    setStatus(`Copied ${place()}. Choose where it goes, then click Paste.`);
+  });
+}
+
+function onPaste() {
+  if (!copied) return;
+  const from = TD3.placeName(copied.group, copied.slot);
+  if (copied.group === state.group && copied.slot === state.slot) {
+    setStatus(`That's where it was copied from. Choose another place to paste ${from} into.`, true);
+    return;
+  }
+  replaceOnTd3(copied.pattern, `the pattern copied from ${from}`, `Pasted ${from} into`);
 }
 
 function onPutBack() {
@@ -916,6 +947,8 @@ function bindControls() {
   $("send").onclick = onSend;
   $("read-group").onclick = onReadGroup;
   $("put-back").onclick = onPutBack;
+  $("copy").onclick = onCopy;
+  $("paste").onclick = onPaste;
 
   $("name").onchange = () => { state.name = $("name").value.trim(); save(); };
   $("save").onclick = () => saveToLibrary(false);

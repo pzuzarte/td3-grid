@@ -92,6 +92,11 @@
         <button id="send" type="button" title="Writes the grid's pattern to that place on the TD-3, replacing what's there">Send</button>
         <button id="read-group" type="button" title="Copies all 16 patterns in this group from the TD-3 into the library">Read group to library</button>
       </div>
+      <div class="row">
+        <button id="copy" type="button" title="Copies the chosen pattern on the TD-3, ready to paste into another place">Copy</button>
+        <button id="paste" type="button" title="Pastes the copied pattern into the chosen place on the TD-3, replacing what's there" disabled>Paste</button>
+        <small id="copied-text">Nothing copied</small>
+      </div>
       <p id="put-back-row" class="row" hidden>
         <button id="put-back" type="button">Put back</button>
         <small id="put-back-text"></small>
@@ -166,6 +171,7 @@
       <li><b>Read</b> loads that pattern into the grid.</li>
       <li><b>Send</b> writes the grid's pattern there, after asking. The page reads what was there first, so <b>Put back</b> can restore it, and reads it again afterwards to check it arrived.</li>
       <li><b>Read group to library</b> copies all 16 of a group's patterns into the library, as a backup.</li>
+      <li><b>Copy</b> and <b>Paste</b> copy a pattern from one place on the TD-3 to another, even in another group, without changing the grid. Choose a place and click Copy, then choose where it goes and click Paste. As with Send, <b>Put back</b> restores what was there.</li>
     </ul>
 
     <h3>Library</h3>
