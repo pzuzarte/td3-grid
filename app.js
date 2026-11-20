@@ -643,12 +643,14 @@ function onReadGroup() {
 
 /* ---------- Playing ---------- */
 
-const play = { on: false, step: 0, pulse: 0, nextTime: 0, stopTimer: null, offs: [], absorbed: new Set() };
+// preview is a library pattern being heard instead of the grid's, as { key, pattern, name }.
+const play = { on: false, step: 0, pulse: 0, nextTime: 0, stopTimer: null, offs: [], absorbed: new Set(), preview: null, previewStarted: false };
 const PPQ = 960; // Pulses to a beat, as the other grids count them for Sync.
-const pulsesPerStep = () => PPQ / (state.pattern.triplet ? 3 : 4);
+const playing = () => play.preview?.pattern || state.pattern;
+const pulsesPerStep = () => PPQ / (playing().triplet ? 3 : 4);
 
 // A step is a sixteenth, or in triplet mode an eighth-note triplet, three to a beat.
-const stepMs = () => 60000 / state.bpm / (state.pattern.triplet ? 3 : 4);
+const stepMs = () => 60000 / state.bpm / (playing().triplet ? 3 : 4);
 
 function velocity(accent) {
   if (accent) return 127;
@@ -666,7 +668,7 @@ function noteOff(note, at) {
 // Plays one step, deciding how long its note lasts from the steps after it. A slide into
 // the same note just holds it, so that note isn't started again.
 function playStep(index, at) {
-  const { steps, length } = state.pattern;
+  const { steps, length } = playing();
   if (play.absorbed.delete(index)) return;
   const item = steps[index];
   if (item.kind !== "note") return;
@@ -702,9 +704,9 @@ function tick() {
   // After the computer sleeps, carry on from now rather than playing the missed steps at once.
   if (play.nextTime < now - stepMs()) play.nextTime = now + 10;
   while (play.nextTime < until) {
-    const index = play.step % state.pattern.length;
+    const index = play.step % playing().length;
     playStep(index, play.nextTime);
-    const shown = index;
+    const shown = play.preview ? null : index;
     const delay = Math.max(0, play.nextTime - performance.now());
     setTimeout(() => showStep(play.on ? shown : null), delay);
     play.nextTime += stepMs();
@@ -737,6 +739,7 @@ function startPlaying({ startAt = null, fromLink = false } = {}) {
     setStatus("Connect the TD-3 to play the pattern.", true);
     return false;
   }
+  if (!fromLink) endPreview();
   play.on = true;
   play.step = 0;
   play.pulse = 0;
@@ -751,6 +754,7 @@ function startPlaying({ startAt = null, fromLink = false } = {}) {
 }
 
 function stopIfPlaying() {
+  endPreview();
   if (!play.on) return;
   play.on = false;
   play.stopTimer();
@@ -766,10 +770,64 @@ function stopIfPlaying() {
   $("play").textContent = "Play";
 }
 
+// Hears a library pattern on the TD-3 without loading it. If the grid is already playing,
+// the library pattern takes over in time, and the grid's comes back when it ends.
+function togglePreview(key, pattern, name) {
+  if (play.preview?.key === key) {
+    const started = play.previewStarted;
+    endPreview();
+    if (started) stopIfPlaying();
+    setStatus(`Stopped hearing "${name}".`);
+    return;
+  }
+  if (!output) {
+    setStatus("Connect the TD-3 to hear patterns.", true);
+    return;
+  }
+  const wasPlaying = play.on;
+  play.preview = { key, pattern: TD3.cleanPattern(pattern), name };
+  play.absorbed.clear();
+  if (!wasPlaying) {
+    // Heard on its own, without starting the other grids.
+    startPlaying({ fromLink: true });
+    play.previewStarted = true;
+  }
+  showStep(null);
+  renderPreviewButtons();
+  setStatus(`Hearing "${name}" on the TD-3. Click Hear again to stop.`);
+}
+
+function endPreview() {
+  if (!play.preview) return;
+  play.preview = null;
+  play.previewStarted = false;
+  play.absorbed.clear();
+  renderPreviewButtons();
+}
+
+function renderPreviewButtons() {
+  document.querySelectorAll("button.hear").forEach((button) => {
+    const on = play.preview?.key === button.dataset.key;
+    button.setAttribute("aria-pressed", String(on));
+    button.textContent = on ? "Stop" : "Hear";
+  });
+}
+
+function hearButton(key, pattern, name) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "hear toggle";
+  button.dataset.key = key;
+  button.title = `Plays "${name}" on the TD-3 without loading it`;
+  button.onclick = () => togglePreview(key, pattern, name);
+  return button;
+}
+
 function togglePlay() {
   if (play.on) {
+    const quiet = play.previewStarted;
     stopIfPlaying();
-    link.announceStop();
+    if (!quiet) link.announceStop();
     setStatus("Stopped.");
   } else {
     startPlaying();
@@ -843,9 +901,10 @@ function renderLibrary() {
     remove.type = "button";
     remove.textContent = "Delete";
     remove.onclick = () => deleteFromLibrary(item);
-    row.append(load, rename, remove);
+    row.append(load, hearButton(`browser:${item.id}`, item.pattern, item.name), rename, remove);
     return row;
   }));
+  renderPreviewButtons();
 }
 
 function loadFromLibrary(item) {
@@ -950,6 +1009,109 @@ async function importFile(file) {
   saveLibrary();
   renderLibrary();
   setStatus(`Added ${added.length} pattern${added.length === 1 ? "" : "s"} from ${file.name}.`);
+}
+
+/* ---------- Pattern folder ---------- */
+
+// .syx pattern files in a folder on this computer. See folder.js.
+const folder = SoundFolder.create({
+  db: "td3-grid-folder",
+  extension: ".syx",
+  check(bytes) {
+    if (!firstPattern(bytes)) throw new Error("No TD-3 pattern in this file.");
+  },
+});
+
+// The first TD-3 pattern in a file's bytes, or null.
+function firstPattern(bytes) {
+  for (const message of TD3.splitSysex(Array.from(bytes))) {
+    const read = TD3.decode(message);
+    if (read) return read.pattern;
+  }
+  return null;
+}
+
+function renderFolder() {
+  const states = {
+    none: "Choose a folder of .syx pattern files on this computer to browse and hear them here.",
+    permission: `Click Allow folder to use "${folder.folder?.name}" again.`,
+    missing: "The folder can't be found. Click Choose folder.",
+    unsupported: "Browsing a folder needs a current Chrome or Edge on a computer.",
+  };
+  const ready = folder.status === "ready";
+  const skipped = folder.skipped ? ` ${folder.skipped} other .syx file${folder.skipped === 1 ? " isn't a TD-3 pattern" : "s aren't TD-3 patterns"}.` : "";
+  $("folder-state").textContent = ready
+    ? `"${folder.folder.name}": ${folder.items.length} pattern${folder.items.length === 1 ? "" : "s"}.${skipped}`
+    : states[folder.status];
+  $("folder-choose").textContent = folder.status === "permission" ? "Allow folder" : ready ? "Choose another" : "Choose folder";
+  $("folder-choose").disabled = folder.status === "unsupported";
+  $("folder-save").disabled = !ready;
+  $("folder-refresh").disabled = !ready;
+  $("folder-search").hidden = !ready || !folder.items.length;
+  const search = $("folder-search").value.trim().toLowerCase();
+  const shown = ready ? folder.items.filter((item) => !search || item.name.toLowerCase().includes(search)) : [];
+  $("folder-list").replaceChildren(...shown.map((item) => {
+    const pattern = firstPattern(item.bytes);
+    const row = document.createElement("li");
+    const load = document.createElement("button");
+    load.type = "button";
+    load.className = "load";
+    load.textContent = item.name;
+    load.title = `Load "${item.name}.syx" into the grid`;
+    load.onclick = () => {
+      change(pattern, `Loaded "${item.name}.syx". Undo brings back what was in the grid.`);
+      state.name = item.name;
+      state.libraryId = null;
+      $("name").value = item.name;
+      save();
+      renderLibrary();
+    };
+    const rename = document.createElement("button");
+    rename.type = "button";
+    rename.textContent = "Rename";
+    rename.onclick = () => folderTask(async () => {
+      const name = prompt("New name", item.name);
+      if (name === null || !name.trim()) return;
+      const saved = await folder.rename(item, name);
+      setStatus(`Renamed it "${saved}.syx".`);
+    });
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Delete";
+    remove.onclick = () => folderTask(async () => {
+      if (!await confirmDialog(`Delete "${item.name}.syx" from "${folder.folder.name}" on this computer? This can't be undone.`, "Delete")) return;
+      await folder.remove(item);
+      setStatus(`Deleted "${item.name}.syx".`);
+    });
+    row.append(load, hearButton(`folder:${item.name}`, pattern, item.name), rename, remove);
+    return row;
+  }));
+  renderPreviewButtons();
+}
+
+async function folderTask(task) {
+  try {
+    await task();
+  } catch (error) {
+    setStatus(`The folder couldn't be used: ${error.message}`, true);
+  }
+  renderFolder();
+}
+
+function bindFolder() {
+  $("folder-choose").onclick = () => folderTask(async () => {
+    if (await folder.choose({ another: folder.status === "ready" }) && folder.status === "ready") {
+      setStatus(`Using "${folder.folder.name}": ${folder.items.length} pattern${folder.items.length === 1 ? "" : "s"}.`);
+    }
+  });
+  $("folder-refresh").onclick = () => folderTask(() => folder.refresh());
+  $("folder-save").onclick = () => folderTask(async () => {
+    const name = $("name").value.trim() || "Untitled";
+    const saved = await folder.add(name, TD3.encode(state.pattern, state.group, state.slot));
+    setStatus(`Saved "${saved}.syx" in "${folder.folder.name}", for ${place()}.`);
+  });
+  $("folder-search").oninput = renderFolder;
+  folderTask(() => folder.restore());
 }
 
 /* ---------- Setting up ---------- */
@@ -1112,6 +1274,7 @@ buildLanes();
 fillSelects();
 setTheme(document.documentElement.dataset.theme === "light");
 bindControls();
+bindFolder();
 renderPeers([]);
 render();
 startMidi();
