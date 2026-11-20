@@ -174,3 +174,13 @@ test("in other keys the rows run from the root to the root above", () => {
   assert.equal(TD3.fromGrid(0, -1, 9), null);
   assert.equal(TD3.fromGrid(12, 1, 2), null);
 });
+
+test("turning the key on snaps notes to the nearest in the key, keeping the root", () => {
+  const all = TD3.cleanPattern({ steps: Array.from({ length: 13 }, (_, note) => ({ kind: "note", note })), length: 16 });
+  const snapped = TD3.snapToKey(all, 9, "minor");
+  // In A minor: C C# D D# E F F# G G# A A# B C' become C C D D E F F G G A A B C'.
+  assert.deepEqual(snapped.steps.slice(0, 13).map((item) => item.note), [0, 0, 2, 2, 4, 5, 5, 7, 7, 9, 9, 11, 12]);
+  assert.ok(snapped.steps.slice(0, 13).every((item) => item.octave === 0));
+  // A note already in the key is left exactly as it is, high C included.
+  assert.deepEqual(snapped.steps[12], all.steps[12]);
+});

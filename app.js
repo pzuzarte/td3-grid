@@ -25,6 +25,7 @@ const state = {
   channel: 1,
   hear: true,
   moveWithKey: true,
+  keyOff: false, // No key: the rows are the TD-3's own keys, C to the high C, all showing.
   outputName: "",
   undo: [],
   redo: [],
@@ -75,6 +76,7 @@ function restore() {
   if (Number.isInteger(saved.channel) && saved.channel >= 1 && saved.channel <= 16) state.channel = saved.channel;
   if (typeof saved.hear === "boolean") state.hear = saved.hear;
   if (typeof saved.moveWithKey === "boolean") state.moveWithKey = saved.moveWithKey;
+  if (typeof saved.keyOff === "boolean") state.keyOff = saved.keyOff;
   if (typeof saved.outputName === "string") state.outputName = saved.outputName;
   library = cleanLibrary(readJson(LIBRARY_KEY, []));
 }
@@ -139,7 +141,9 @@ function withStep(index, edit) {
 
 /* ---------- Drawing the grid ---------- */
 
-const keyNotes = () => new Set(TD3.SCALES[state.scale].map((degree) => (state.root + degree) % 12));
+// The root the grid's rows start from. With the key off, that's the TD-3's own C.
+const gridRoot = () => (state.keyOff ? 0 : state.root);
+const keyNotes = () => new Set(TD3.SCALES[state.keyOff ? "chromatic" : state.scale].map((degree) => (gridRoot() + degree) % 12));
 
 // The row and octave move a step was drawn with, as the root a row up and the root above
 // are the same pitch. Used while it still matches the step's note.
@@ -149,9 +153,9 @@ function gridPlace(item, index) {
   const before = state.pattern.steps[index - 1];
   if (item.kind === "tie" && before && before.kind !== "rest") return gridPlace(before, index - 1);
   const hint = drawnAt[index];
-  const back = hint && TD3.fromGrid(hint.row, hint.shift, state.root);
+  const back = hint && TD3.fromGrid(hint.row, hint.shift, gridRoot());
   if (back && TD3.height(back) === TD3.height(item)) return hint;
-  return TD3.onGrid(item, state.root);
+  return TD3.onGrid(item, gridRoot());
 }
 
 // The grid's rows, the root above first: the notes of the key and mode, and any the
@@ -160,14 +164,14 @@ function visibleRows() {
   const inKey = keyNotes();
   const used = new Set(state.pattern.steps.map((item, index) => (item.kind === "rest" ? null : gridPlace(item, index).row)));
   return Array.from({ length: 13 }, (_, index) => 12 - index)
-    .filter((row) => inKey.has((state.root + row) % 12) || used.has(row));
+    .filter((row) => inKey.has((gridRoot() + row) % 12) || used.has(row));
 }
 
 let shownRows = "";
 
 function buildRows() {
   const rows = visibleRows();
-  const shape = `${state.root}:${rows.join()}`;
+  const shape = `${gridRoot()}:${rows.join()}`;
   if (shape === shownRows) return;
   shownRows = shape;
   const grid = $("grid");
@@ -183,7 +187,7 @@ function buildRows() {
     const label = document.createElement("span");
     label.className = "label";
     label.dataset.row = String(row);
-    label.textContent = TD3.rowName(row, state.root);
+    label.textContent = TD3.rowName(row, gridRoot());
     cells.push(label);
     for (let index = 0; index < TD3.STEPS; index += 1) {
       const cell = document.createElement("button");
@@ -243,10 +247,20 @@ function laneText(cell, long, short = long) {
   cell.replaceChildren(wide, narrow);
 }
 
+function renderKey() {
+  $("root").value = state.keyOff ? "off" : String(state.root);
+  $("scale").value = state.keyOff ? "off" : state.scale;
+  $("generate").disabled = state.keyOff;
+  $("generate").title = state.keyOff
+    ? "Choose a key to generate a line, as lines are written in a key"
+    : "Replaces the pattern with a new acid line in the key. Undo brings the old one back.";
+}
+
 function render() {
+  renderKey();
   buildRows();
   const { steps, length } = state.pattern;
-  const isRoot = (row) => row === 0 || row === 12;
+  const isRoot = (row) => !state.keyOff && (row === 0 || row === 12);
   const places = steps.map((item, index) => gridPlace(item, index));
   document.querySelectorAll("#grid .label").forEach((label) => {
     label.classList.toggle("root", isRoot(Number(label.dataset.row)));
@@ -264,7 +278,7 @@ function render() {
     cell.classList.toggle("up", here && item.kind === "note" && places[index].shift > 0);
     cell.classList.toggle("down", here && item.kind === "note" && places[index].shift < 0);
     cell.classList.toggle("off-length", index >= length);
-    cell.setAttribute("aria-label", `Step ${index + 1}, ${TD3.rowName(row, state.root)}: ${here ? describe(item) : "empty"}`);
+    cell.setAttribute("aria-label", `Step ${index + 1}, ${TD3.rowName(row, gridRoot())}: ${here ? describe(item) : "empty"}`);
   });
   document.querySelectorAll("#lanes .lane-cell").forEach((cell) => {
     const index = Number(cell.dataset.step);
@@ -312,9 +326,9 @@ let drawing = null; // { row } while dragging notes onto steps.
 function placeNote(index, row) {
   return withStep(index, (item) => {
     let shift = item.kind === "rest" ? 0 : gridPlace(item, index).shift;
-    if (!TD3.fromGrid(row, shift, state.root)) shift = 0;
+    if (!TD3.fromGrid(row, shift, gridRoot())) shift = 0;
     if (item.kind === "rest") Object.assign(item, { accent: false, slide: false });
-    Object.assign(item, { kind: "note" }, TD3.fromGrid(row, shift, state.root));
+    Object.assign(item, { kind: "note" }, TD3.fromGrid(row, shift, gridRoot()));
     drawnAt[index] = { row, shift };
   });
 }
@@ -370,8 +384,8 @@ function onLaneClick(event) {
     const { row, shift } = gridPlace(item, index);
     const order = [0, 1, 2, -1, -2];
     const move = [1, 2, 3, 4].map((ahead) => order[(order.indexOf(shift) + ahead) % order.length])
-      .find((option) => TD3.fromGrid(row, option, state.root));
-    const next = move === undefined ? null : TD3.fromGrid(row, move, state.root);
+      .find((option) => TD3.fromGrid(row, option, gridRoot()));
+    const next = move === undefined ? null : TD3.fromGrid(row, move, gridRoot());
     if (!next) {
       setStatus(`Step ${index + 1} can't move an octave in this key without going past the TD-3's range.`, true);
       return;
@@ -388,7 +402,7 @@ function onLaneClick(event) {
     const kind = order[(order.indexOf(item.kind) + 1) % order.length];
     change(withStep(index, (step) => {
       if (kind === "note" && step.kind === "rest") {
-        const from = before && before.kind !== "rest" ? { note: before.note, octave: before.octave } : TD3.fromGrid(0, 0, state.root);
+        const from = before && before.kind !== "rest" ? { note: before.note, octave: before.octave } : TD3.fromGrid(0, 0, gridRoot());
         Object.assign(step, from, { accent: false, slide: false });
       }
       step.kind = kind;
@@ -1126,14 +1140,12 @@ function bindFolder() {
 /* ---------- Setting up ---------- */
 
 function fillSelects() {
-  $("root").replaceChildren(...TD3.KEYS.slice(0, 12).map((name, index) => new Option(name, String(index))));
-  $("scale").replaceChildren(...Object.keys(TD3.SCALES).map((name) =>
+  $("root").replaceChildren(new Option("Off", "off"), ...TD3.KEYS.slice(0, 12).map((name, index) => new Option(name, String(index))));
+  $("scale").replaceChildren(new Option("Off", "off"), ...Object.keys(TD3.SCALES).map((name) =>
     new Option(name === "chromatic" ? "All notes" : name[0].toUpperCase() + name.slice(1), name)));
   $("channel").replaceChildren(...Array.from({ length: 16 }, (_, index) => new Option(String(index + 1), String(index + 1))));
   $("group").replaceChildren(...Array.from({ length: TD3.GROUPS }, (_, index) => new Option(String(index + 1), String(index))));
   $("slot").replaceChildren(...Array.from({ length: TD3.SLOTS }, (_, index) => new Option(TD3.slotName(index), String(index))));
-  $("root").value = String(state.root);
-  $("scale").value = state.scale;
   $("channel").value = String(state.channel);
   $("group").value = String(state.group);
   $("slot").value = String(state.slot);
@@ -1195,6 +1207,7 @@ function bindControls() {
   $("shift-left").onclick = () => change(TD3.rotate(state.pattern, -1), "Moved the steps left.");
   $("shift-right").onclick = () => change(TD3.rotate(state.pattern, 1), "Moved the steps right.");
   $("generate").onclick = () => {
+    if (state.keyOff) return;
     // With all notes showing, lines are written in the minor scale.
     const scale = state.scale === "chromatic" ? "minor" : state.scale;
     const made = TD3.generate({ root: state.root, scale });
@@ -1206,7 +1219,34 @@ function bindControls() {
   $("clear").onclick = () => change({ ...TD3.emptyPattern(), length: state.pattern.length, triplet: state.pattern.triplet },
     "Cleared. Undo brings it back.");
 
+  const keyOff = (off, message) => {
+    state.keyOff = off;
+    save();
+    render();
+    setStatus(message);
+  };
+  // Turning the key on snaps each note to the nearest in the key, keeping the root.
+  const keyOn = () => {
+    const name = `${TD3.KEYS[state.root]} ${$("scale").selectedOptions[0]?.text.toLowerCase() || state.scale}`;
+    state.keyOff = false;
+    if (state.moveWithKey) {
+      change(TD3.snapToKey(state.pattern, state.root, state.scale), `Key: ${name}. Notes moved to the nearest notes in the key. Undo puts the notes back.`);
+    } else {
+      save();
+      render();
+      setStatus(`Key: ${name}. Notes weren't moved.`);
+    }
+  };
   $("root").onchange = () => {
+    if ($("root").value === "off") {
+      keyOff(true, "Key off. The rows are the TD-3's own keys, C to the high C, and notes stay where they are.");
+      return;
+    }
+    if (state.keyOff) {
+      state.root = Number($("root").value);
+      keyOn();
+      return;
+    }
     const from = state.root;
     state.root = Number($("root").value);
     save();
@@ -1223,7 +1263,15 @@ function bindControls() {
     }
     render();
   };
-  $("scale").onchange = () => { state.scale = $("scale").value; save(); render(); };
+  $("scale").onchange = () => {
+    if ($("scale").value === "off") {
+      keyOff(true, "Key off. The rows are the TD-3's own keys, C to the high C, and notes stay where they are.");
+      return;
+    }
+    state.scale = $("scale").value;
+    if (state.keyOff) keyOn();
+    else { save(); render(); }
+  };
   $("move-notes").onchange = () => { state.moveWithKey = $("move-notes").checked; save(); };
   $("output").onchange = () => {
     stopIfPlaying();

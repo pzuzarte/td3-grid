@@ -241,6 +241,24 @@ const TD3 = (() => {
     return pattern;
   }
 
+  // Moves each note to the nearest one in a key, the lower of two equally near, without
+  // changing the root. Used when the key is turned on after the notes went in without one.
+  function snapToKey(input, root, scale) {
+    const pattern = copyPattern(input);
+    const degrees = [...(SCALES[scale] || SCALES.minor), 12];
+    for (const item of pattern.steps) {
+      if (item.kind === "rest") continue;
+      const value = height(item);
+      const offset = (((value - root) % 12) + 12) % 12;
+      const target = degrees.reduce((best, degree) => (Math.abs(degree - offset) < Math.abs(best - offset) ? degree : best));
+      let moved = value + target - offset;
+      if (moved > 36) moved -= 12;
+      if (moved < 0) moved += 12;
+      if (moved !== value) Object.assign(item, fromHeight(moved));
+    }
+    return pattern;
+  }
+
   // Moves the steps round by one or more, within the steps that play.
   function rotate(input, by) {
     const pattern = copyPattern(input);
@@ -288,7 +306,7 @@ const TD3 = (() => {
     GROUPS, KEYS, SCALES, SLOTS, STEPS,
     cleanPattern, copyPattern, decode, decodeConfig, emptyPattern, encode, fromGrid, fromHeight,
     fromPitchValue, generate, gridBase, height, keyName, onGrid, rowName, midiNote, pitchValue, placeName, requestConfig, requestPattern, rotate,
-    slotName, splitSysex, step, transpose,
+    slotName, snapToKey, splitSysex, step, transpose,
   };
 })();
 
