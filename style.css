@@ -128,7 +128,10 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .row.end { justify-content: flex-end; }
 .row small, .muted { color: var(--muted); font-size: 12px; }
 .card .row:first-of-type { margin-top: 0; }
-.library input[type="text"] { flex: 1; min-width: 120px; }
+.name-field { display: flex; color: var(--text); font-size: 13px; }
+.name-field input { flex: 1; min-width: 0; }
+h2 small { font-weight: 400; }
+.card .name-field + .row { margin-top: 8px; }
 .library input[type="search"] { width: 100%; margin-top: 10px; }
 
 .library-list { max-height: 46vh; margin: 8px 0 0; padding: 0; overflow-y: auto; list-style: none; }

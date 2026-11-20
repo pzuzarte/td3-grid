@@ -110,16 +110,23 @@
       </p>
     </section>
 
-    <section class="card library" aria-labelledby="library-title">
-      <h2 id="library-title">Library</h2>
+    <section class="card" aria-labelledby="pattern-title">
+      <h2 id="pattern-title">This pattern</h2>
+      <label class="name-field">Name
+        <input id="name" type="text" maxlength="40" placeholder="Untitled">
+      </label>
       <div class="row">
-        <input id="name" type="text" maxlength="40" placeholder="Pattern name" aria-label="Pattern name">
-        <button id="save" type="button" title="Saves the grid's pattern in the library under this name">Save</button>
+        <button id="save" type="button" title="Saves the grid's pattern in the library in this browser, under this name">Save to library</button>
         <button id="save-new" type="button" title="Saves it as a new library pattern, keeping the one it was loaded from">Save as new</button>
+        <button id="folder-save" type="button" title="Saves the grid's pattern as a .syx file in the pattern folder, under this name, for the chosen place on the TD-3">Save to folder</button>
       </div>
-      <input id="search" type="search" placeholder="Search" aria-label="Search the library">
+    </section>
+
+    <section class="card library" aria-labelledby="library-title">
+      <h2 id="library-title">Library <small class="muted">in this browser</small></h2>
+      <input id="search" type="search" placeholder="Search the library" aria-label="Search the library">
       <ul id="library" class="library-list"></ul>
-      <p id="library-empty" class="muted">No saved patterns yet. Save one, or read a group from the TD-3.</p>
+      <p id="library-empty" class="muted"></p>
       <div class="row">
         <button id="export-syx" type="button" title="Downloads the grid's pattern as a .syx file for the chosen place on the TD-3">Download .syx</button>
         <button id="export" type="button" title="Downloads the whole library as a file">Back up</button>
@@ -129,15 +136,15 @@
     </section>
 
     <section class="card library" aria-labelledby="folder-title">
-      <h2 id="folder-title">Pattern folder</h2>
+      <h2 id="folder-title">Pattern folder <small class="muted">on this computer</small></h2>
       <p id="folder-state" class="muted"></p>
       <div class="row">
         <button id="folder-choose" type="button" title="Choose a folder on this computer that holds .syx pattern files">Choose folder</button>
-        <button id="folder-save" type="button" title="Saves the grid's pattern in the folder as a .syx file, named after it, for the chosen place on the TD-3">Save grid here</button>
         <button id="folder-refresh" type="button" title="Looks at the folder again, after adding files to it">Refresh</button>
       </div>
-      <input id="folder-search" type="search" placeholder="Search" aria-label="Search the folder">
+      <input id="folder-search" type="search" placeholder="Search the folder" aria-label="Search the folder">
       <ul id="folder-list" class="library-list"></ul>
+      <p id="folder-empty" class="muted" hidden></p>
     </section>
   </aside>
 </div>
@@ -197,7 +204,7 @@
 
     <h3>Library</h3>
     <ul>
-      <li><b>Save</b> keeps the grid's pattern under its name. Click a pattern in the list to load it, and Send it from there.</li>
+      <li><b>This pattern</b> holds the grid's pattern's name. <b>Save to library</b> keeps it in this browser under that name, and <b>Save to folder</b> saves it as a file in the pattern folder. Click a pattern in either list to load it, and Send it from there.</li>
       <li><b>Back up</b> downloads the whole library as a file, and <b>Import</b> adds patterns from a backup or a .syx file. <b>Download .syx</b> saves the grid's pattern for the chosen place, for other SysEx tools.</li>
       <li>The library is kept in this browser. Back it up now and then, as clearing the browser's data clears it.</li>
       <li><b>Hear</b> plays a pattern on the TD-3 without loading it into the grid. Click it again, or Stop, to stop. If the grid is already playing, the pattern takes over in time, and the grid's comes back when you stop hearing it.</li>
@@ -206,7 +213,7 @@
     <h3>Pattern folder</h3>
     <ul>
       <li><b>Choose folder</b> picks a folder on this computer that holds .syx files, such as ones downloaded from here or other TD-3 tools. Every file with a TD-3 pattern in it is listed. Chrome remembers the folder, and may ask you to allow it again after a restart.</li>
-      <li>Click a name to load it into the grid, or <b>Hear</b> to play it first. <b>Save grid here</b> saves the grid's pattern as a .syx file named after it. <b>Refresh</b> shows files added to the folder since.</li>
+      <li>Click a name to load it into the grid, or <b>Hear</b> to play it first. <b>Save to folder</b>, under This pattern, saves the grid's pattern there as a .syx file with its name. <b>Refresh</b> shows files added to the folder since.</li>
       <li><b>Delete</b> deletes the file from your computer, after asking.</li>
     </ul>
 

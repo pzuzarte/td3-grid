@@ -882,8 +882,10 @@ function hear(item) {
 function renderLibrary() {
   const search = $("search").value.trim().toLowerCase();
   const shown = library.filter((item) => !search || item.name.toLowerCase().includes(search));
-  $("library-empty").hidden = library.length > 0;
-  $("library-empty").textContent = library.length ? "" : "No saved patterns yet. Save one, or read a group from the TD-3.";
+  $("library-empty").hidden = shown.length > 0;
+  $("library-empty").textContent = library.length
+    ? `No library patterns match "${$("search").value.trim()}".`
+    : "No saved patterns yet. Save one, or read a group from the TD-3.";
   $("library").replaceChildren(...shown.map((item) => {
     const row = document.createElement("li");
     row.classList.toggle("current", item.id === state.libraryId);
@@ -1046,10 +1048,17 @@ function renderFolder() {
   $("folder-choose").textContent = folder.status === "permission" ? "Allow folder" : ready ? "Choose another" : "Choose folder";
   $("folder-choose").disabled = folder.status === "unsupported";
   $("folder-save").disabled = !ready;
+  $("folder-save").title = ready
+    ? `Saves the grid's pattern as a .syx file in "${folder.folder.name}", under its name, for the chosen place on the TD-3`
+    : "Choose a pattern folder first, under Pattern folder";
   $("folder-refresh").disabled = !ready;
   $("folder-search").hidden = !ready || !folder.items.length;
   const search = $("folder-search").value.trim().toLowerCase();
   const shown = ready ? folder.items.filter((item) => !search || item.name.toLowerCase().includes(search)) : [];
+  $("folder-empty").hidden = !ready || shown.length > 0;
+  $("folder-empty").textContent = folder.items.length
+    ? `No files match "${$("folder-search").value.trim()}".`
+    : "No pattern files here yet. Save to folder adds the grid's pattern.";
   $("folder-list").replaceChildren(...shown.map((item) => {
     const pattern = firstPattern(item.bytes);
     const row = document.createElement("li");
