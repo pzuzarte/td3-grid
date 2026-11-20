@@ -152,6 +152,9 @@ test("in C the grid is the TD-3's own keyboard, with its Down and Up keys", () =
     }
   }
   assert.equal(TD3.rowName(12, 0), "C'");
+  // Two octaves is past the TD-3's Down and Up keys, so the octave lane skips it.
+  assert.equal(TD3.fromGrid(7, 2, 0), null);
+  assert.equal(TD3.fromGrid(7, -2, 0), null);
 });
 
 test("in other keys the rows run from the root to the root above", () => {

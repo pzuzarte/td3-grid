@@ -105,7 +105,8 @@ const TD3 = (() => {
 
   // The key and octave for a row and octave move, or null if it's past the TD-3's range.
   function fromGrid(row, shift, root) {
-    if (root === 0) return { note: row, octave: shift };
+    // In C the octave moves are the TD-3's Down and Up keys, one octave each way.
+    if (root === 0) return Math.abs(shift) <= 1 ? { note: row, octave: shift } : null;
     const value = gridBase(root) + row + shift * 12;
     return value < 0 || value > 36 ? null : fromHeight(value);
   }
