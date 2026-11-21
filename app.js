@@ -711,6 +711,40 @@ function playStep(index, at) {
   noteOff(note, end);
 }
 
+/* A song from Song Grid while it plays one: { bars, loop, cues, pulse, muted }. Each cue
+   starts, at a bar of 4/4, the grid's own pattern ("grid"), a library pattern named by its
+   id, or silence, from its first step. The song ends or loops after its last bar. The part
+   arrives just before Song Grid starts playback. See sync.js. */
+const SONG_BAR = PPQ * 4;
+let song = null;
+let pendingSong = null;
+
+// Called before each step. Returns false once the song has ended.
+function followSong() {
+  if (song.pulse % SONG_BAR !== 0) return true;
+  if (song.pulse >= song.bars * SONG_BAR) {
+    if (!song.loop) {
+      stopIfPlaying();
+      setStatus("The song has ended.");
+      return false;
+    }
+    song.pulse = 0;
+  }
+  const bar = song.pulse / SONG_BAR;
+  const cue = Sync.songCue(song, bar);
+  if (!cue) return true;
+  const item = typeof cue.pattern === "string" && cue.pattern !== "grid" ? library.find((entry) => entry.id === cue.pattern) : null;
+  song.muted = cue.pattern === null || (cue.pattern !== "grid" && !item);
+  // A library pattern plays in place of the grid's, which stays as it is.
+  play.preview = item ? { key: "song", pattern: TD3.cleanPattern(item.pattern), name: item.name } : null;
+  play.step = 0;
+  play.absorbed.clear();
+  const what = cue.pattern === "grid" ? "the grid's pattern" : item ? `"${item.name}"` : "silent";
+  const missing = cue.pattern !== null && cue.pattern !== "grid" && !item ? " The library pattern it names isn't in this browser's library." : "";
+  setStatus(`Song: ${what} from bar ${bar + 1}.${missing}`, Boolean(missing));
+  return true;
+}
+
 function tick() {
   if (!play.on) return;
   const now = performance.now();
@@ -718,13 +752,15 @@ function tick() {
   // After the computer sleeps, carry on from now rather than playing the missed steps at once.
   if (play.nextTime < now - stepMs()) play.nextTime = now + 10;
   while (play.nextTime < until) {
+    if (song && !followSong()) return;
     const index = play.step % playing().length;
-    playStep(index, play.nextTime);
+    if (!song?.muted) playStep(index, play.nextTime);
     const shown = play.preview ? null : index;
     const delay = Math.max(0, play.nextTime - performance.now());
     setTimeout(() => showStep(play.on ? shown : null), delay);
     play.nextTime += stepMs();
     play.pulse += pulsesPerStep();
+    if (song) song.pulse += pulsesPerStep();
     play.step = index + 1;
   }
   play.offs = play.offs.filter((off) => off.at > performance.now() - 1000);
@@ -754,6 +790,8 @@ function startPlaying({ startAt = null, fromLink = false } = {}) {
     return false;
   }
   if (!fromLink) endPreview();
+  if (!fromLink) song = null;
+  if (song) Object.assign(song, { pulse: 0, muted: false });
   play.on = true;
   play.step = 0;
   play.pulse = 0;
@@ -865,9 +903,13 @@ const link = Sync.connect({
     stopIfPlaying();
     state.bpm = bpm;
     $("bpm").value = String(bpm);
+    // Song Grid sends this page its part just before it starts playback.
+    song = pendingSong;
+    pendingSong = null;
     return startPlaying({ startAt: at, fromLink: true });
   },
   stop: () => stopIfPlaying(),
+  song: (part) => { pendingSong = part; },
   tempo({ bpm, at, pulse }) {
     state.bpm = bpm;
     $("bpm").value = String(bpm);
