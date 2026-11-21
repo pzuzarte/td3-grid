@@ -24,6 +24,7 @@ const state = {
   slot: 0,
   channel: 1,
   hear: true,
+  sendClock: false, // MIDI clock, start and stop with playback.
   moveWithKey: true,
   keyOff: false, // No key: the rows are the TD-3's own keys, C to the high C, all showing.
   outputName: "",
@@ -60,6 +61,7 @@ function writeJson(key, value) {
 function save() {
   const { undo, redo, ...kept } = state;
   writeJson(STORAGE_KEY, { ...kept, rowsFollowKey: true });
+  $("pattern-name").textContent = state.name || "Untitled";
 }
 
 function restore() {
@@ -75,6 +77,7 @@ function restore() {
   if (Number.isInteger(saved.slot) && saved.slot >= 0 && saved.slot < TD3.SLOTS) state.slot = saved.slot;
   if (Number.isInteger(saved.channel) && saved.channel >= 1 && saved.channel <= 16) state.channel = saved.channel;
   if (typeof saved.hear === "boolean") state.hear = saved.hear;
+  if (typeof saved.sendClock === "boolean") state.sendClock = saved.sendClock;
   if (typeof saved.moveWithKey === "boolean") state.moveWithKey = saved.moveWithKey;
   if (typeof saved.keyOff === "boolean") state.keyOff = saved.keyOff;
   if (typeof saved.outputName === "string") state.outputName = saved.outputName;
@@ -754,6 +757,7 @@ function tick() {
   while (play.nextTime < until) {
     if (song && !followSong()) return;
     const index = play.step % playing().length;
+    beatAndClock(play.nextTime);
     if (!song?.muted) playStep(index, play.nextTime);
     const shown = play.preview ? null : index;
     const delay = Math.max(0, play.nextTime - performance.now());
@@ -798,6 +802,7 @@ function startPlaying({ startAt = null, fromLink = false } = {}) {
   play.absorbed.clear();
   const shared = fromLink ? null : link.announcePlay(state.bpm);
   play.nextTime = startAt ?? shared ?? performance.now() + 30;
+  if (state.sendClock) send([0xFA], play.nextTime);
   play.stopTimer = everyTick(tick);
   tick();
   $("play").setAttribute("aria-pressed", "true");
@@ -811,6 +816,7 @@ function stopIfPlaying() {
   play.on = false;
   play.stopTimer();
   // Notes already on their way are let go now, and everything is silenced.
+  if (output && state.sendClock) send([0xFC]);
   if (output) {
     output.clear?.();
     for (const off of play.offs) noteOff(off.note);
@@ -873,6 +879,34 @@ function hearButton(key, pattern, name) {
   button.title = `Plays "${name}" on the TD-3 without loading it`;
   button.onclick = () => togglePreview(key, pattern, name);
   return button;
+}
+
+// A metronome click on each beat, louder on each bar, from this computer. See recorder.js.
+const click = Recorder.createClick({ storageKey: "td3-grid-click", button: $("click") });
+const CLOCK_PULSES = PPQ / 24; // MIDI clock is 24 to a beat.
+
+// The click and MIDI clock for the step starting at a time, whatever the step's length.
+function beatAndClock(at) {
+  if (play.pulse % PPQ === 0) click.at(at, play.pulse % (4 * PPQ) === 0);
+  if (!state.sendClock) return;
+  const pulses = pulsesPerStep();
+  for (let pulse = 0; pulse < pulses; pulse += CLOCK_PULSES) send([0xF8], at + (pulse / pulses) * stepMs());
+}
+
+// Stops playback everywhere and silences anything still sounding on the TD-3.
+function panic() {
+  if (play.on) {
+    const quiet = play.previewStarted;
+    stopIfPlaying();
+    if (!quiet) link.announceStop();
+  }
+  if (!output) {
+    setStatus("No MIDI output connected.", true);
+    return;
+  }
+  send([0xB0 | (state.channel - 1), 120, 0]);
+  send([0xB0 | (state.channel - 1), 123, 0]);
+  setStatus("All notes off.");
 }
 
 function togglePlay() {
@@ -1193,6 +1227,8 @@ function fillSelects() {
   $("slot").value = String(state.slot);
   $("bpm").value = String(state.bpm);
   $("hear").checked = state.hear;
+  $("clock").checked = state.sendClock;
+  $("pattern-name").textContent = state.name || "Untitled";
   $("move-notes").checked = state.moveWithKey;
   $("name").value = state.name;
 }
@@ -1236,6 +1272,8 @@ function bindControls() {
   $("triplet").onclick = () => change({ ...TD3.copyPattern(state.pattern), triplet: !state.pattern.triplet },
     state.pattern.triplet ? "Plays in sixteenths." : "Plays in triplets.");
   $("hear").onchange = () => { state.hear = $("hear").checked; save(); };
+  $("clock").onchange = () => { state.sendClock = $("clock").checked; save(); };
+  $("stop-all").onclick = panic;
 
   const move = (semitones, word) => {
     const moved = TD3.transpose(state.pattern, semitones);

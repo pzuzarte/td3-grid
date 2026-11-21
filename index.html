@@ -25,10 +25,10 @@
     <select id="scale"></select>
   </label>
   <label class="check" title="When on, changing the key moves the pattern into the new key. When off, notes stay where they are.">
-    <input id="move-notes" type="checkbox" checked> Move notes with key
+    <input id="move-notes" type="checkbox" checked> Move notes
   </label>
   <div class="spacer"></div>
-  <label title="Where the page plays the pattern, and sends and reads patterns">TD-3
+  <label title="The TD-3, where the page plays the pattern, and sends and reads patterns">MIDI output
     <select id="output"></select>
   </label>
   <label title="The channel the TD-3 listens on. It's read from the TD-3 when it connects.">Channel
@@ -36,15 +36,48 @@
   </label>
   <span id="midi-state" class="pill">MIDI: starting</span>
   <button id="midi-retry" type="button" hidden>Allow MIDI</button>
-  <button id="theme-toggle" type="button" title="Switch between dark and light mode">Light mode</button>
+  <details class="tool-menu">
+    <summary title="Open another of the tools, in its own tab">Tools</summary>
+    <nav aria-label="Tools">
+      <a href="https://pzuzarte.github.io/s1-grid/" target="s1-grid">S-1 Grid</a>
+      <a href="https://pzuzarte.github.io/protein-grid/" target="protein-grid">Protein Grid</a>
+      <a href="https://pzuzarte.github.io/bass-station-grid/" target="bass-station-grid">Bass Station Grid</a>
+      <a href="https://pzuzarte.github.io/mpc-grid/" target="mpc-grid">MPC Grid</a>
+      <a href="https://pzuzarte.github.io/td3-grid/" target="td3-grid" aria-current="page">TD-3 Grid</a>
+      <a href="https://pzuzarte.github.io/song-grid/" target="song-grid">Song Grid</a>
+      <a href="https://pzuzarte.github.io/midi-hub/" target="midi-hub">MIDI Hub</a>
+      <hr>
+      <button id="theme-toggle" type="button" title="Switch between dark and light mode">Light mode</button>
+    </nav>
+  </details>
   <button id="help-open" type="button" title="Help (press ?)">Help</button>
 </header>
 
-<section class="bar tools" aria-label="Pattern">
-  <button id="play" class="toggle" type="button" aria-pressed="false" title="Plays the pattern on the TD-3 from this page (Space)">Play</button>
-  <label>Tempo
+<section class="bar slots-bar" aria-label="Pattern">
+  <span class="group-label">Pattern</span>
+  <span id="pattern-name" class="pill" title="The pattern's name, set under This pattern"></span>
+  <div class="spacer"></div>
+  <button id="generate" type="button" title="Replaces the pattern with a new acid line in the key. Undo brings the old one back.">Generate</button>
+  <button id="undo" type="button" title="Undo (Cmd+Z)" disabled>Undo</button>
+  <button id="redo" type="button" title="Redo (Cmd+Shift+Z)" disabled>Redo</button>
+  <button id="clear" type="button">Clear</button>
+</section>
+
+<section class="bar transport" aria-label="Transport and pattern settings">
+  <button id="play" class="primary" type="button" aria-pressed="false" title="Plays the pattern on the TD-3 from this page (Space)">Play</button>
+  <button id="stop-all" type="button" title="Stops playback and silences any stuck notes">Panic</button>
+  <label>BPM
     <input id="bpm" type="number" min="40" max="300" step="1" value="125">
   </label>
+  <label class="check" title="Plays together with the other grids and Song Grid when they're open in this browser. Play, stop and tempo are shared.">
+    <input id="sync" type="checkbox"> Sync
+  </label>
+  <span id="sync-peers" class="pill" role="status" hidden></span>
+  <label class="check" title="Sends MIDI clock, start and stop with playback. With its clock source set to USB, the TD-3 then plays its own pattern in time too.">
+    <input id="clock" type="checkbox"> Send clock
+  </label>
+  <button id="click" class="toggle" type="button" aria-pressed="false" title="A metronome click on each beat while the pattern plays, louder on the first beat of each bar. It plays from this computer, not the TD-3.">Click</button>
+  <span class="divider" aria-hidden="true"></span>
   <label title="How many steps play, from 1 to 16">Steps
     <input id="length" type="number" min="1" max="16" step="1" value="16">
   </label>
@@ -52,11 +85,9 @@
   <label class="check" title="Plays each note you add on the TD-3">
     <input id="hear" type="checkbox" checked> Hear notes
   </label>
-  <label class="check" title="Plays together with the other grids when they're open in this browser. Play, stop and tempo are shared.">
-    <input id="sync" type="checkbox"> Sync
-  </label>
-  <span id="sync-peers" class="pill" role="status" hidden></span>
-  <span class="divider" aria-hidden="true"></span>
+</section>
+
+<section class="bar tools" aria-label="Pattern tools">
   <div class="button-pair" role="group" aria-label="Transpose">
     <button id="down-semitone" type="button" title="Moves every note down a semitone">-1</button>
     <button id="up-semitone" type="button" title="Moves every note up a semitone">+1</button>
@@ -66,14 +97,9 @@
     <button id="up-octave" type="button" title="Moves every note up an octave">Oct +</button>
   </div>
   <div class="button-pair" role="group" aria-label="Shift">
-    <button id="shift-left" type="button" title="Moves every step one to the left, round to the end">&lt; Shift</button>
+    <button id="shift-left" type="button" title="Moves every step one to the left, round to the end">Shift &lt;</button>
     <button id="shift-right" type="button" title="Moves every step one to the right, round to the start">Shift &gt;</button>
   </div>
-  <span class="divider" aria-hidden="true"></span>
-  <button id="generate" type="button" title="Replaces the pattern with a new acid line in the key. Undo brings the old one back.">Generate</button>
-  <button id="undo" type="button" title="Undo (Ctrl+Z)" disabled>Undo</button>
-  <button id="redo" type="button" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
-  <button id="clear" type="button">Clear</button>
 </section>
 
 <div class="main">
@@ -190,7 +216,8 @@
       <li><b>-1</b> and <b>+1</b> move every note a semitone, and <b>Oct -</b> and <b>Oct +</b> an octave, as far as the TD-3's range allows. <b>Shift</b> moves the steps round.</li>
       <li><b>Generate</b> writes a new acid line in the key. <b>Undo</b> brings back what was there.</li>
       <li><b>Play</b> plays the pattern on the TD-3 from this page, at the page's tempo, so you can hear it before sending it. Space starts and stops it.</li>
-      <li><b>Sync</b> plays this page together with S-1 Grid, MPC Grid, Protein Grid and Bass Station Grid when they're open in the same browser, each with its MIDI connected and Sync on. Pressing Play or Stop on any of them starts or stops them all, from the start of their patterns, at the tempo of the page you pressed. Changing the tempo on one changes them all. The badge beside it shows which pages are linked.</li>
+      <li><b>Panic</b> stops playback and silences any notes still sounding on the TD-3. <b>Click</b> plays a metronome click on each beat from this computer. <b>Send clock</b> sends MIDI clock, start and stop with playback. With its clock source set to USB, the TD-3 then plays its own stored pattern in time too, so turn it on only when you want that.</li>
+      <li><b>Sync</b> plays this page together with the other grids, S-1 Grid, Protein Grid, Bass Station Grid, MPC Grid and TD-3 Grid, when they're open in the same browser, each with its MIDI connected and Sync ticked. Pressing Play or Stop on any of them starts or stops them all, from the start of their patterns, at the tempo of the page you pressed, and changing the BPM on one changes them all. The badge beside Sync shows which pages are linked. <a href="https://pzuzarte.github.io/song-grid/" target="song-grid">Song Grid</a> arranges their patterns into a song and plays them through Sync. The <b>Tools</b> menu at the top opens any of them.</li>
     </ul>
 
     <h3>The TD-3's patterns</h3>
@@ -219,14 +246,24 @@
 
     <h3>Keys</h3>
     <ul>
-      <li><b>Space</b> play or stop, <b>Ctrl+Z</b> undo, <b>Ctrl+Shift+Z</b> redo, <b>?</b> this help.</li>
+      <li><b>Space</b> play or stop, <b>Cmd+Z</b> undo, <b>Cmd+Shift+Z</b> redo, <b>?</b> this help.</li>
     </ul>
   </div>
 </dialog>
 
 <script src="sync.js"></script>
+<script src="recorder.js"></script>
 <script src="folder.js"></script>
 <script src="td3.js"></script>
 <script src="app.js"></script>
+<script>
+  // The tools menu closes when you click elsewhere or press Escape.
+  document.addEventListener("click", (event) => {
+    for (const menu of document.querySelectorAll(".tool-menu[open]")) if (!menu.contains(event.target)) menu.open = false;
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") for (const menu of document.querySelectorAll(".tool-menu[open]")) menu.open = false;
+  });
+</script>
 </body>
 </html>
