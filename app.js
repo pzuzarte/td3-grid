@@ -725,15 +725,13 @@ let pendingSong = null;
 // Called before each step. Returns false once the song has ended.
 function followSong() {
   if (song.pulse % SONG_BAR !== 0) return true;
-  if (song.pulse >= song.bars * SONG_BAR) {
-    if (!song.loop) {
-      stopIfPlaying();
-      setStatus("The song has ended.");
-      return false;
-    }
-    song.pulse = 0;
+  // Each bar after the first moves the song on, following any move from Song Grid.
+  if (song.pulse > 0 && !Sync.songNextBar(song)) {
+    stopIfPlaying();
+    setStatus("The song has ended.");
+    return false;
   }
-  const bar = song.pulse / SONG_BAR;
+  const bar = song.bar;
   const cue = Sync.songCue(song, bar);
   if (!cue) return true;
   const item = typeof cue.pattern === "string" && cue.pattern !== "grid" ? library.find((entry) => entry.id === cue.pattern) : null;
@@ -795,7 +793,7 @@ function startPlaying({ startAt = null, fromLink = false } = {}) {
   }
   if (!fromLink) endPreview();
   if (!fromLink) song = null;
-  if (song) Object.assign(song, { pulse: 0, muted: false });
+  if (song) Object.assign(Sync.songStart(song), { pulse: 0, muted: false });
   play.on = true;
   play.step = 0;
   play.pulse = 0;
@@ -944,6 +942,10 @@ const link = Sync.connect({
   },
   stop: () => stopIfPlaying(),
   song: (part) => { pendingSong = part; },
+  songMoved(data) {
+    const move = song && Sync.songMove(data, song.bars);
+    if (move) song.moves.push(move);
+  },
   tempo({ bpm, at, pulse }) {
     state.bpm = bpm;
     $("bpm").value = String(bpm);
