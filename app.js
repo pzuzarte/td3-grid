@@ -689,7 +689,10 @@ function playStep(index, at) {
   if (play.absorbed.delete(index)) return;
   const item = steps[index];
   if (item.kind !== "note") return;
-  const note = TD3.midiNote(item);
+  // A song section can shift the notes, kept in range.
+  const shift = song?.transpose || 0;
+  const midi = (step) => Math.max(0, Math.min(127, TD3.midiNote(step) + shift));
+  const note = midi(item);
   const tiesAfter = (from) => {
     let count = 0;
     while (from + count + 1 < length && steps[from + count + 1].kind === "tie") count += 1;
@@ -698,7 +701,7 @@ function playStep(index, at) {
   let span = 1 + tiesAfter(index);
   let last = item;
   let next = steps[(index + span) % length];
-  while (last.slide && next.kind === "note" && TD3.midiNote(next) === note && span < length) {
+  while (last.slide && next.kind === "note" && midi(next) === note && span < length) {
     const at2 = (index + span) % length;
     play.absorbed.add(at2);
     last = next;
@@ -733,9 +736,19 @@ function followSong() {
   }
   const bar = song.bar;
   const cue = Sync.songCue(song, bar);
-  if (!cue) return true;
+  // Song Grid's mute and solo buttons can silence this grid from any bar.
+  if (!cue) {
+    song.muted = song.off || Sync.songSilenced(song);
+    return true;
+  }
+  song.transpose = cue.transpose || 0;
+  if (cue.bpm && cue.bpm !== state.bpm) {
+    state.bpm = cue.bpm;
+    $("bpm").value = String(cue.bpm);
+  }
   const item = typeof cue.pattern === "string" && cue.pattern !== "grid" ? library.find((entry) => entry.id === cue.pattern) : null;
-  song.muted = cue.pattern === null || (cue.pattern !== "grid" && !item);
+  song.off = cue.pattern === null || (cue.pattern !== "grid" && !item);
+  song.muted = song.off || Sync.songSilenced(song);
   // A library pattern plays in place of the grid's, which stays as it is.
   play.preview = item ? { key: "song", pattern: TD3.cleanPattern(item.pattern), name: item.name } : null;
   play.step = 0;
