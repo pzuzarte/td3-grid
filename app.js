@@ -927,6 +927,32 @@ function renderPeers(names) {
 }
 
 // Plays together with the other grids when they're open in this browser. See sync.js.
+// Puts the patterns kept with a song in Song Grid back: its grid pattern into the grid,
+// where Undo brings back what was there, and library patterns the library doesn't have
+// into it. Library patterns it already has are left as they are. See sync.js.
+function loadAssets(assets) {
+  const items = Array.isArray(assets.patterns) ? assets.patterns.filter((item) => item && typeof item.ref === "string" && item.data && typeof item.data === "object") : [];
+  const grid = items.find((item) => item.ref === "grid");
+  const added = items.filter((item) => item.ref !== "grid" && !library.some((entry) => entry.id === item.ref)).map((item) => ({
+    id: item.ref.slice(0, 64), name: (typeof item.label === "string" ? item.label : "").slice(0, 40) || "Untitled",
+    pattern: TD3.cleanPattern(item.data), saved: new Date().toISOString(),
+  }));
+  const kept = items.filter((item) => item.ref !== "grid").length - added.length;
+  if (grid) change(grid.data);
+  if (added.length) {
+    library.push(...added);
+    saveLibrary();
+    renderLibrary();
+  }
+  const parts = [];
+  if (grid) parts.push("Put the grid pattern in. Undo here brings back what was there.");
+  if (added.length) parts.push(`Added ${added.length} pattern${added.length === 1 ? "" : "s"} to the library.`);
+  if (kept) parts.push(`${kept} ${kept === 1 ? "was" : "were"} in the library already.`);
+  const message = parts.join(" ") || "There was nothing to put in.";
+  setStatus(`From Song Grid: ${message}`, !parts.length);
+  return { ok: parts.length > 0, message };
+}
+
 // What Song Grid keeps of this grid for a song: its patterns, and its sound where it has
 // one. See sync.js.
 function collectAssets() {
@@ -956,6 +982,7 @@ const link = Sync.connect({
   stop: () => stopIfPlaying(),
   song: (part) => { pendingSong = part; },
   assets: collectAssets,
+  loadAssets,
   songMoved(data) {
     const move = song && Sync.songMove(data, song.bars);
     if (move) song.moves.push(move);
