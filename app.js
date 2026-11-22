@@ -927,6 +927,19 @@ function renderPeers(names) {
 }
 
 // Plays together with the other grids when they're open in this browser. See sync.js.
+// What Song Grid keeps of this grid for a song: its patterns, and its sound where it has
+// one. See sync.js.
+function collectAssets() {
+  const count = (pattern) => pattern.steps.slice(0, pattern.length).filter((item) => item.kind === "note").length;
+  const entry = (id, ref, label, pattern) => ({
+    id, ref, label, length: `${pattern.length} steps${pattern.triplet ? ", triplets" : ""}`, notes: count(pattern), data: TD3.copyPattern(pattern),
+  });
+  const patterns = [entry("td3:grid", "grid", `Grid pattern${state.name ? `, ${state.name}` : ""}`, state.pattern),
+    ...library.map((item) => entry(`td3:${item.id}`, item.id, item.name, item.pattern))];
+  // The TD-3's sound is set by its own knobs, so there's none to keep.
+  return { patterns, sound: null };
+}
+
 const link = Sync.connect({
   name: "TD-3 Grid",
   checkbox: $("sync"),
@@ -942,6 +955,7 @@ const link = Sync.connect({
   },
   stop: () => stopIfPlaying(),
   song: (part) => { pendingSong = part; },
+  assets: collectAssets,
   songMoved(data) {
     const move = song && Sync.songMove(data, song.bars);
     if (move) song.moves.push(move);
