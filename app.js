@@ -953,6 +953,19 @@ function loadAssets(assets) {
   return { ok: parts.length > 0, message };
 }
 
+/* What this grid can offer Song Grid for a song, to pick from: the pattern in its grid,
+   and its library's. fetchPicked gives the ones picked, as assets. See sync.js. */
+function catalog() {
+  const [grid, ...saved] = collectAssets().patterns;
+  const choice = (item) => ({ id: item.id, label: item.label, meta: `${item.length}, ${item.notes} note${item.notes === 1 ? "" : "s"}` });
+  return { grid: [choice(grid)], patterns: saved.map(choice), sounds: [], note: "" };
+}
+
+function fetchPicked({ patterns: ids = [] } = {}) {
+  const list = Array.isArray(ids) ? ids : [];
+  return { patterns: collectAssets().patterns.filter((item) => list.includes(item.id)), sound: null };
+}
+
 // What Song Grid keeps of this grid for a song: its patterns, and its sound where it has
 // one. See sync.js.
 function collectAssets() {
@@ -983,6 +996,7 @@ const link = Sync.connect({
   song: (part) => { pendingSong = part; },
   assets: collectAssets,
   loadAssets,
+  answers: { catalog, fetch: fetchPicked },
   songMoved(data) {
     const move = song && Sync.songMove(data, song.bars);
     if (move) song.moves.push(move);
