@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TD-3 Grid</title>
-<link rel="stylesheet" href="style.css?v=202611240021">
+<link rel="stylesheet" href="style.css?v=202611240901">
 <script>
   // Set before the page draws, so it doesn't flash the other theme.
   try { if ((localStorage.getItem("midi-grids-theme") || localStorage.getItem("td3-grid-theme")) === "light") document.documentElement.dataset.theme = "light"; } catch {}
@@ -21,14 +21,14 @@
   <label title="The grid's rows start on this note, and generated lines are in this key">Key
     <select id="root"></select>
   </label>
-  <label title="Which notes the grid shows between the root and the root an octave above">Mode
+  <label title="Which notes the grid shows between the root and the root an octave above">Scale
     <select id="scale"></select>
   </label>
   <label class="check" title="When on, changing the key moves the pattern into the new key. When off, notes stay where they are.">
     <input id="move-notes" type="checkbox" checked> Move notes
   </label>
   <div class="spacer"></div>
-  <label title="The TD-3, where the page plays the pattern, and sends and reads patterns">MIDI output
+  <label title="The TD-3, where the page plays the pattern, and sends and reads patterns">Output
     <select id="output"></select>
   </label>
   <label title="The channel the TD-3 listens on. It's read from the TD-3 when it connects.">Channel
@@ -82,17 +82,21 @@
     <input id="clock" type="checkbox"> Send clock
   </label>
   <button id="click" class="toggle" type="button" aria-pressed="false" title="A metronome click on each beat while the pattern plays, louder on the first beat of each bar. It plays from this computer, not the TD-3.">Click</button>
+  <label class="check" title="Plays each note you add on the TD-3">
+    <input id="hear" type="checkbox" checked> Hear notes
+  </label>
   <span class="divider" aria-hidden="true"></span>
   <label title="How many steps play, from 1 to 16">Steps
     <input id="length" type="number" min="1" max="16" step="1" value="16">
   </label>
   <button id="triplet" class="toggle" type="button" aria-pressed="false" title="Plays the steps as triplets, three to each beat, as the TD-3's triplet mode does">Triplets</button>
-  <label class="check" title="Plays each note you add on the TD-3">
-    <input id="hear" type="checkbox" checked> Hear notes
-  </label>
 </section>
 
 <section class="bar tools" aria-label="Pattern tools">
+  <div class="button-pair" role="group" aria-label="Shift">
+    <button id="shift-left" type="button" title="Moves every step one to the left, round to the end">Shift &lt;</button>
+    <button id="shift-right" type="button" title="Moves every step one to the right, round to the start">Shift &gt;</button>
+  </div>
   <div class="button-pair" role="group" aria-label="Transpose">
     <button id="down-semitone" type="button" title="Moves every note down a semitone">-1</button>
     <button id="up-semitone" type="button" title="Moves every note up a semitone">+1</button>
@@ -100,10 +104,6 @@
   <div class="button-pair" role="group" aria-label="Octave">
     <button id="down-octave" type="button" title="Moves every note down an octave">Oct -</button>
     <button id="up-octave" type="button" title="Moves every note up an octave">Oct +</button>
-  </div>
-  <div class="button-pair" role="group" aria-label="Shift">
-    <button id="shift-left" type="button" title="Moves every step one to the left, round to the end">Shift &lt;</button>
-    <button id="shift-right" type="button" title="Moves every step one to the right, round to the start">Shift &gt;</button>
   </div>
 </section>
 
@@ -212,7 +212,7 @@
     <h3>Writing a pattern</h3>
     <ul>
       <li><b>Notes</b>: click a square for that note, and click it again for a rest. Drag along to draw several.</li>
-      <li><b>Key</b> and <b>Mode</b>: the rows run from the key's root note at the bottom to the same note an octave up at the top, with the root rows shaded. <b>All notes</b> shows all 13; a mode such as Minor shows just its notes. Notes already in the pattern always keep their row. In C with All notes, the rows are the TD-3's own keys, C to the high C. With <b>Move notes with key</b> on, changing the key moves the whole pattern into the new key, by the nearest way up or down that fits the TD-3's range. <b>Off</b>, first under Key or Mode, turns the key off: the rows are the TD-3's own keys, C to the high C, all showing, with nothing shaded, and notes stay where they are. Choosing a key again, with Move notes with key on, moves each note to the nearest one in that key and mode, without changing the root. Generate needs a key.</li>
+      <li><b>Key</b> and <b>Scale</b>: the rows run from the key's root note at the bottom to the same note an octave up at the top, with the root rows shaded. <b>All notes</b> shows all 13; a mode such as Minor shows just its notes. Notes already in the pattern always keep their row. In C with All notes, the rows are the TD-3's own keys, C to the high C. With <b>Move notes with key</b> on, changing the key moves the whole pattern into the new key, by the nearest way up or down that fits the TD-3's range. <b>Off</b>, first under Key or Scale, turns the key off: the rows are the TD-3's own keys, C to the high C, all showing, with nothing shaded, and notes stay where they are. Choosing a key again, with Move notes with key on, moves each note to the nearest one in that key and mode, without changing the root. Generate needs a key.</li>
       <li><b>Oct</b>: moves that step's note down or up an octave from the grid, for three octaves in all. In C these are the TD-3's own Down and Up keys. In other keys, a move that would go past the TD-3's lowest or highest note is skipped.</li>
       <li><b>Accent</b>: plays that note louder and brighter.</li>
       <li><b>Slide</b>: glides from that note into the next one.</li>
@@ -257,12 +257,12 @@
   </div>
 </dialog>
 
-<script src="sync.js?v=202611240021"></script>
-<script src="recorder.js?v=202611240021"></script>
-<script src="named-file.js?v=202611240021"></script>
-<script src="folder.js?v=202611240021"></script>
-<script src="td3.js?v=202611240021"></script>
-<script src="app.js?v=202611240021"></script>
+<script src="sync.js?v=202611240901"></script>
+<script src="recorder.js?v=202611240901"></script>
+<script src="named-file.js?v=202611240901"></script>
+<script src="folder.js?v=202611240901"></script>
+<script src="td3.js?v=202611240901"></script>
+<script src="app.js?v=202611240901"></script>
 <script>
   // The tools menu closes when you click elsewhere or press Escape.
   document.addEventListener("click", (event) => {
