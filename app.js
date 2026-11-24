@@ -994,6 +994,7 @@ function collectAssets() {
 }
 
 const link = Sync.connect({
+  startOff: true, // Each visit starts with Sync off.
   name: "TD-3 Grid",
   checkbox: $("sync"),
   storageKey: "td3-grid-sync",
@@ -1483,6 +1484,8 @@ function bindControls() {
 }
 
 restore();
+// Each visit starts with the key and scale off. Choosing a key brings back the last one.
+state.keyOff = true;
 buildLanes();
 fillSelects();
 setTheme(document.documentElement.dataset.theme === "light");
