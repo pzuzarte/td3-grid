@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TD-3 Grid</title>
-<link rel="stylesheet" href="style.css?v=202611240901">
+<link rel="stylesheet" href="style.css?v=202611240920">
 <script>
   // Set before the page draws, so it doesn't flash the other theme.
   try { if ((localStorage.getItem("midi-grids-theme") || localStorage.getItem("td3-grid-theme")) === "light") document.documentElement.dataset.theme = "light"; } catch {}
@@ -109,6 +109,7 @@
 
 <div class="main">
   <div class="editor">
+    <div class="grid-title-row"><button id="grid-title" class="grid-title" type="button" title="Click to name this pattern"></button></div>
     <div id="grid" class="grid" role="grid" aria-label="Notes"></div>
     <div id="lanes" class="grid lanes" aria-label="Step settings"></div>
     <p class="hint">Click a square for a note, and again for a rest. Drag to draw. Under each step: <b>Oct</b> moves its note down or up an octave, <b>Accent</b> plays it harder, <b>Slide</b> glides into the next note, and <b>Step</b> makes it a note, a tie that holds the note before, or a rest.</p>
@@ -257,12 +258,12 @@
   </div>
 </dialog>
 
-<script src="sync.js?v=202611240901"></script>
-<script src="recorder.js?v=202611240901"></script>
-<script src="named-file.js?v=202611240901"></script>
-<script src="folder.js?v=202611240901"></script>
-<script src="td3.js?v=202611240901"></script>
-<script src="app.js?v=202611240901"></script>
+<script src="sync.js?v=202611240920"></script>
+<script src="recorder.js?v=202611240920"></script>
+<script src="named-file.js?v=202611240920"></script>
+<script src="folder.js?v=202611240920"></script>
+<script src="td3.js?v=202611240920"></script>
+<script src="app.js?v=202611240920"></script>
 <script>
   // The tools menu closes when you click elsewhere or press Escape.
   document.addEventListener("click", (event) => {

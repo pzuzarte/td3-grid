@@ -66,7 +66,33 @@ function save() {
   renderNameBar();
 }
 
+// The name of the pattern on the grid, shown just above it. Clicking it renames it.
+function renderGridTitle(word, number, name) {
+  const title = $("grid-title");
+  if (!title) return;
+  const label = document.createElement("span");
+  label.className = "number";
+  label.textContent = number === "" ? `${word}: ` : `${word} ${number}: `;
+  const shown = document.createElement("span");
+  shown.className = "name";
+  shown.textContent = name || "Untitled";
+  title.replaceChildren(label, shown);
+  title.classList.toggle("untitled", !name);
+  title.title = name ? `Click to rename ${word.toLowerCase()} ${number}` : `Click to name ${word.toLowerCase()} ${number}`;
+}
+
+// Names the pattern, as the Name field under This pattern does.
+function renamePattern() {
+  const answer = window.prompt("Name this pattern", state.name || "Untitled");
+  if (answer === null || !answer.trim()) return;
+  state.name = answer.trim().slice(0, 40);
+  $("name").value = state.name;
+  save();
+  setStatus(`Named the pattern "${state.name}". Save keeps the name.`);
+}
+
 function renderNameBar() {
+  renderGridTitle("Pattern", "", state.name);
   const label = $("pattern-name");
   label.textContent = state.name || "Untitled";
   label.classList.toggle("untitled", !state.name);
@@ -1568,6 +1594,7 @@ function bindControls() {
   $("name").onchange = () => { state.name = $("name").value.trim(); save(); };
   $("save").onclick = () => saveToLibrary(false);
   $("pattern-save").onclick = () => savePatternFile();
+  $("grid-title").onclick = renamePattern;
   $("pattern-save-as").onclick = () => savePatternFile({ asNew: true });
   $("pattern-open").onclick = openPatternFile;
   $("save-new").onclick = () => saveToLibrary(true);
