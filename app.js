@@ -992,6 +992,31 @@ function fetchPicked({ patterns: ids = [] } = {}) {
   return { patterns: collectAssets().patterns.filter((item) => list.includes(item.id)), sound: null };
 }
 
+// Song Grid sends .syx files chosen on the computer. Each pattern in them goes into the
+// library here, which Song Grid shares, so it can be chosen in a song by name.
+function readFilesForSong({ files = [] } = {}) {
+  const patterns = [];
+  const skipped = [];
+  const count = (pattern) => pattern.steps.slice(0, pattern.length).filter((item) => item.kind === "note").length;
+  for (const file of Array.isArray(files) ? files : []) {
+    const fileName = String(file?.name || "");
+    const pattern = Array.isArray(file?.bytes) ? firstPattern(new Uint8Array(file.bytes)) : null;
+    if (!pattern) {
+      skipped.push(fileName || "A file");
+      continue;
+    }
+    const name = fileName.replace(/\.syx$/i, "").slice(0, 40) || "Untitled";
+    const item = { id: newId(), name, pattern: TD3.copyPattern(pattern), saved: new Date().toISOString() };
+    library.unshift(item);
+    patterns.push({ id: `td3:${item.id}`, ref: item.id, label: name, length: `${pattern.length} steps${pattern.triplet ? ", triplets" : ""}`, notes: count(pattern), data: TD3.copyPattern(pattern) });
+  }
+  if (patterns.length) {
+    saveLibrary();
+    renderLibrary();
+  }
+  return { patterns, skipped };
+}
+
 // What Song Grid keeps of this grid for a song: its patterns, and its sound where it has
 // one. See sync.js.
 function collectAssets() {
@@ -1023,7 +1048,7 @@ const link = Sync.connect({
   song: (part) => { pendingSong = part; },
   assets: collectAssets,
   loadAssets,
-  answers: { catalog, fetch: fetchPicked },
+  answers: { catalog, fetch: fetchPicked, readFiles: readFilesForSong },
   songMoved(data) {
     const move = song && Sync.songMove(data, song.bars);
     if (move) song.moves.push(move);
