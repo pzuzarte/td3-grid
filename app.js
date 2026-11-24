@@ -6,7 +6,8 @@
 const $ = (id) => document.getElementById(id);
 const STORAGE_KEY = "td3-grid";
 const LIBRARY_KEY = "td3-grid-library";
-const THEME_KEY = "td3-grid-theme";
+// Shared by all the grids, so switching one switches them all.
+const THEME_KEY = "midi-grids-theme";
 const UNDO_LIMIT = 100;
 const REPLY_TIMEOUT_MS = 1500;
 const SETTLE_MS = 250; // A pause after writing a pattern, before reading it back.
@@ -1306,13 +1307,18 @@ function fillSelects() {
 function setTheme(light) {
   if (light) document.documentElement.dataset.theme = "light";
   else delete document.documentElement.dataset.theme;
-  $("theme-toggle").textContent = light ? "Dark mode" : "Light mode";
+  $("theme-toggle").textContent = light ? "☾" : "☀";
   try {
     localStorage.setItem(THEME_KEY, light ? "light" : "dark");
   } catch {
     // It's just not remembered.
   }
 }
+
+// Follows a switch made on another grid open in this browser.
+window.addEventListener("storage", (event) => {
+  if (event.key === THEME_KEY && event.newValue) setTheme(event.newValue === "light");
+});
 
 function bindControls() {
   const grid = $("grid");
