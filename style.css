@@ -235,3 +235,8 @@ h2 small { font-weight: 400; }
 .tool-menu nav button:hover { background: var(--panel-2); }
 
 .theme-toggle { min-width: 2.2em; font-size: 1.05em; line-height: 1; }
+
+/* The name of the pattern, shown large so it's clear which one is loaded. */
+.name-bar { align-items: center; }
+.pattern-name { min-width: 0; max-width: 40ch; overflow: hidden; font-size: 20px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.pattern-name.untitled { color: var(--muted); font-weight: 400; font-style: italic; }

@@ -18,6 +18,7 @@ const state = {
   pattern: TD3.emptyPattern(),
   name: "",
   libraryId: null,
+  fileKey: null, // The .syx file the pattern came from or was saved to, so Save writes to it.
   bpm: 125,
   root: 0,
   scale: "chromatic",
@@ -62,7 +63,17 @@ function writeJson(key, value) {
 function save() {
   const { undo, redo, ...kept } = state;
   writeJson(STORAGE_KEY, { ...kept, rowsFollowKey: true });
-  $("pattern-name").textContent = state.name || "Untitled";
+  renderNameBar();
+}
+
+function renderNameBar() {
+  const label = $("pattern-name");
+  label.textContent = state.name || "Untitled";
+  label.classList.toggle("untitled", !state.name);
+  label.title = state.fileKey
+    ? `"${state.name}" is a .syx file. Save writes to it again.`
+    : state.libraryId ? `"${state.name}" is in the library in this browser. Save updates it there.`
+      : "This pattern hasn't been saved yet. Save asks where to save it.";
 }
 
 function restore() {
@@ -82,6 +93,7 @@ function restore() {
   if (typeof saved.moveWithKey === "boolean") state.moveWithKey = saved.moveWithKey;
   if (typeof saved.keyOff === "boolean") state.keyOff = saved.keyOff;
   if (typeof saved.outputName === "string") state.outputName = saved.outputName;
+  if (typeof saved.fileKey === "string") state.fileKey = saved.fileKey;
   library = cleanLibrary(readJson(LIBRARY_KEY, []));
 }
 
@@ -1075,6 +1087,7 @@ function loadFromLibrary(item) {
   change(item.pattern, `Loaded "${item.name}". Undo brings back what was in the grid.`);
   state.name = item.name;
   state.libraryId = item.id;
+  state.fileKey = null;
   $("name").value = item.name;
   save();
   renderLibrary();
@@ -1093,10 +1106,82 @@ function saveToLibrary(asNew) {
     setStatus(`Saved "${name}" in the library.`);
   }
   state.name = name;
+  state.fileKey = null;
   $("name").value = name;
   saveLibrary();
   save();
   renderLibrary();
+}
+
+/* ---------- Pattern files ---------- */
+
+// A pattern saved as a .syx file, anywhere, with the Mac's Save dialog, starting in the
+// pattern folder. Save writes to the pattern's file again, or its library entry.
+const patternFiles = NamedFile.create({
+  db: "td3-grid-files", id: "td3-grid-patterns", extension: ".syx", description: "TD-3 pattern", mime: "application/octet-stream",
+});
+
+const patternBytes = () => new Uint8Array(TD3.encode(state.pattern, state.group, state.slot));
+const startFolder = () => (folder.status === "ready" ? folder.folder : undefined);
+
+async function savePatternFile({ asNew = false } = {}) {
+  if (!asNew && !state.fileKey && state.libraryId && library.some((item) => item.id === state.libraryId)) {
+    saveToLibrary(false);
+    return;
+  }
+  if (!patternFiles.supported()) {
+    setStatus("Saving patterns as files needs Chrome or Edge on a computer.", true);
+    return;
+  }
+  try {
+    let saved = null;
+    if (!asNew && state.fileKey) saved = await patternFiles.save(state.fileKey, patternBytes());
+    if (!saved) {
+      const key = NamedFile.newKey();
+      saved = await patternFiles.saveAs(key, $("name").value.trim() || state.name || "Untitled", patternBytes(), { startIn: startFolder() });
+      if (!saved) {
+        setStatus("Not saved.");
+        return;
+      }
+      state.fileKey = key;
+    }
+    state.name = saved.name;
+    state.libraryId = null;
+    $("name").value = saved.name;
+    save();
+    renderLibrary();
+    if (folder.status === "ready") folderTask(() => folder.refresh());
+    setStatus(`Saved "${saved.name}.syx", for ${place()}.`);
+  } catch (error) {
+    setStatus(`Couldn't save it: ${error.message}`, true);
+  }
+}
+
+async function openPatternFile() {
+  if (!patternFiles.supported()) {
+    setStatus("Opening pattern files needs Chrome or Edge on a computer.", true);
+    return;
+  }
+  const key = NamedFile.newKey();
+  try {
+    const opened = await patternFiles.open(key, { startIn: startFolder() });
+    if (!opened) return;
+    const pattern = firstPattern(opened.bytes);
+    if (!pattern) {
+      await patternFiles.forget(key);
+      setStatus(`"${opened.name}" has no TD-3 pattern in it.`, true);
+      return;
+    }
+    change(pattern, `Opened "${opened.name}.syx". Undo brings back what was in the grid.`);
+    state.name = opened.name;
+    state.libraryId = null;
+    state.fileKey = key;
+    $("name").value = opened.name;
+    save();
+    renderLibrary();
+  } catch (error) {
+    setStatus(`Couldn't open it: ${error.message}`, true);
+  }
 }
 
 function renameInLibrary(item) {
@@ -1233,6 +1318,13 @@ function renderFolder() {
       change(pattern, `Loaded "${item.name}.syx". Undo brings back what was in the grid.`);
       state.name = item.name;
       state.libraryId = null;
+      state.fileKey = null;
+      // Save writes back to this file.
+      const key = NamedFile.newKey();
+      folder.folder.getFileHandle(`${item.name}.syx`)
+        .then((handle) => patternFiles.remember(key, handle))
+        .then(() => { state.fileKey = key; save(); })
+        .catch(() => {});
       $("name").value = item.name;
       save();
       renderLibrary();
@@ -1300,7 +1392,7 @@ function fillSelects() {
   $("bpm").value = String(state.bpm);
   $("hear").checked = state.hear;
   $("clock").checked = state.sendClock;
-  $("pattern-name").textContent = state.name || "Untitled";
+  renderNameBar();
   $("move-notes").checked = state.moveWithKey;
   $("name").value = state.name;
 }
@@ -1450,6 +1542,9 @@ function bindControls() {
 
   $("name").onchange = () => { state.name = $("name").value.trim(); save(); };
   $("save").onclick = () => saveToLibrary(false);
+  $("pattern-save").onclick = () => savePatternFile();
+  $("pattern-save-as").onclick = () => savePatternFile({ asNew: true });
+  $("pattern-open").onclick = openPatternFile;
   $("save-new").onclick = () => saveToLibrary(true);
   $("search").oninput = renderLibrary;
   $("export-syx").onclick = exportSyx;
@@ -1474,6 +1569,10 @@ function bindControls() {
       togglePlay();
     } else if (event.key === "?") {
       $("help").showModal();
+    } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+      // Cmd+S saves the pattern, and Cmd+Shift+S saves it as a new file.
+      event.preventDefault();
+      if (!event.repeat) savePatternFile({ asNew: event.shiftKey });
     } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
       event.preventDefault();
       if (event.shiftKey) undoRedo(state.redo, state.undo, "Redone.");

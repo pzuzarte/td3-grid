@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TD-3 Grid</title>
-<link rel="stylesheet" href="style.css?v=202611232252">
+<link rel="stylesheet" href="style.css?v=202611232345">
 <script>
   // Set before the page draws, so it doesn't flash the other theme.
   try { if ((localStorage.getItem("midi-grids-theme") || localStorage.getItem("td3-grid-theme")) === "light") document.documentElement.dataset.theme = "light"; } catch {}
@@ -52,9 +52,15 @@
   <button id="help-open" type="button" title="Help (press ?)">Help</button>
 </header>
 
-<section class="bar slots-bar" aria-label="Pattern">
+<section class="bar name-bar" aria-label="This pattern's file">
   <span class="group-label">Pattern</span>
-  <span id="pattern-name" class="pill" title="The pattern's name, set under This pattern"></span>
+  <strong id="pattern-name" class="pattern-name untitled">Untitled</strong>
+  <button id="pattern-save" class="primary" type="button" title="Save this pattern again, to its .syx file or its place in the library (Cmd+S). The first time, it asks where.">Save</button>
+  <button id="pattern-save-as" type="button" title="Save this pattern as a new .syx file, choosing its name and folder (Cmd+Shift+S)">Save as&hellip;</button>
+  <button id="pattern-open" type="button" title="Open a TD-3 .syx file from anywhere on this computer into the grid">Open&hellip;</button>
+</section>
+
+<section class="bar slots-bar" aria-label="Pattern">
   <div class="spacer"></div>
   <button id="generate" type="button" title="Replaces the pattern with a new acid line in the key. Undo brings the old one back.">Generate</button>
   <button id="undo" type="button" title="Undo (Cmd+Z)" disabled>Undo</button>
@@ -230,6 +236,7 @@
 
     <h3>Library</h3>
     <ul>
+      <li>The bar at the top shows the pattern's name, large. <b>Save</b> (Cmd+S) saves it again: to its .syx file if it came from one or was saved as one, or to its place in the library in this browser. The first time, and with <b>Save as&hellip;</b> (Cmd+Shift+S), the Mac's Save dialog asks for a name and a folder, starting in the pattern folder, then in wherever you saved last. <b>Open&hellip;</b> opens a TD-3 .syx file from anywhere.</li>
       <li><b>This pattern</b> holds the grid's pattern's name. <b>Save to library</b> keeps it in this browser under that name, and <b>Save to folder</b> saves it as a file in the pattern folder. Click a pattern in either list to load it, and Send it from there.</li>
       <li><b>Back up</b> downloads the whole library as a file, and <b>Import</b> adds patterns from a backup or a .syx file. <b>Download .syx</b> saves the grid's pattern for the chosen place, for other SysEx tools.</li>
       <li>The library is kept in this browser. Back it up now and then, as clearing the browser's data clears it.</li>
@@ -250,11 +257,12 @@
   </div>
 </dialog>
 
-<script src="sync.js?v=202611232252"></script>
-<script src="recorder.js?v=202611232252"></script>
-<script src="folder.js?v=202611232252"></script>
-<script src="td3.js?v=202611232252"></script>
-<script src="app.js?v=202611232252"></script>
+<script src="sync.js?v=202611232345"></script>
+<script src="recorder.js?v=202611232345"></script>
+<script src="named-file.js?v=202611232345"></script>
+<script src="folder.js?v=202611232345"></script>
+<script src="td3.js?v=202611232345"></script>
+<script src="app.js?v=202611232345"></script>
 <script>
   // The tools menu closes when you click elsewhere or press Escape.
   document.addEventListener("click", (event) => {
