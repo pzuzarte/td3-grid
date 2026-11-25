@@ -13,6 +13,8 @@ const REPLY_TIMEOUT_MS = 1500;
 const SETTLE_MS = 250; // A pause after writing a pattern, before reading it back.
 const LOOKAHEAD_MS = 120;
 const TICK_MS = 25;
+// This grid's name on the clipboard the grids share.
+const GRID_ID = "td3";
 
 const state = {
   pattern: TD3.emptyPattern(),
@@ -179,6 +181,40 @@ function withStep(index, edit) {
     else Object.assign(item, { note: before.note, octave: before.octave });
   }
   return next;
+}
+
+/* ---------- Copy and paste between the grids ---------- */
+
+// Copies the grid's pattern for any of the grids: S-1, TD-3, Bass Station or Protein.
+function copyToGrids() {
+  const { span, notes } = TD3.toNotes(state.pattern);
+  if (!PatternClipboard.write(GRID_ID, span, notes)) {
+    setStatus("The browser wouldn't keep the copy.", true);
+    return;
+  }
+  renderGridPaste();
+  const count = `${notes.length} ${notes.length === 1 ? "note" : "notes"}`;
+  setStatus(`Copied the pattern, ${count}. Paste it here or in S-1, Bass Station or Protein Grid.`);
+}
+
+// Replaces the grid's pattern with what was copied last in any of the grids.
+function pasteFromGrids() {
+  const clip = PatternClipboard.read();
+  if (!clip) {
+    setStatus("Nothing's been copied yet. Copy a pattern in this grid or another one first.", true);
+    return;
+  }
+  const pattern = TD3.fromNotes(clip);
+  const used = pattern.steps.slice(0, pattern.length).filter((item) => item.kind === "note").length;
+  const from = clip.from && clip.from !== GRID_ID ? ` from ${PatternClipboard.sourceName(clip)}` : "";
+  const ticks = PatternClipboard.PPQ / (pattern.triplet ? 3 : 4);
+  const cut = clip.notes.some((n) => Math.round(n.time / ticks) >= pattern.length) ? " Notes past 16 steps were left off." : "";
+  const chords = clip.notes.length > used && !cut ? " Where notes play together, the lowest was kept." : "";
+  change(pattern, `Pasted ${used} ${used === 1 ? "note" : "notes"}${from}. Undo brings the old pattern back.${cut}${chords}`);
+}
+
+function renderGridPaste() {
+  $("grid-paste").disabled = !PatternClipboard.read();
 }
 
 /* ---------- Drawing the grid ---------- */
@@ -1610,6 +1646,11 @@ function bindControls() {
 
   $("midi-retry").onclick = startMidi;
   $("theme-toggle").onclick = () => setTheme(document.documentElement.dataset.theme !== "light");
+  $("grid-copy").onclick = copyToGrids;
+  $("grid-paste").onclick = pasteFromGrids;
+  renderGridPaste();
+  // Paste works as soon as anything is copied in any of the grids, even in another tab.
+  PatternClipboard.onChange(renderGridPaste);
   $("help-open").onclick = () => $("help").showModal();
   $("help-close").onclick = () => $("help").close();
 
@@ -1625,6 +1666,12 @@ function bindControls() {
       // Cmd+S saves the pattern, and Cmd+Shift+S saves it as a new file.
       event.preventDefault();
       if (!event.repeat) savePatternFile({ asNew: event.shiftKey });
+    } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && !window.getSelection()?.toString()) {
+      event.preventDefault();
+      copyToGrids();
+    } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+      event.preventDefault();
+      pasteFromGrids();
     } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
       event.preventDefault();
       if (event.shiftKey) undoRedo(state.redo, state.undo, "Redone.");

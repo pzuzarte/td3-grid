@@ -302,11 +302,79 @@ const TD3 = (() => {
     return pattern;
   }
 
+
+  /* Patterns as notes, for the clipboard the grids share (pattern-clipboard.js): times in
+     ticks at 960 to a beat, notes as MIDI notes, velocity 0 to 1, plus accent and slide. */
+  const PPQ = 960;
+  const ACCENT_VELOCITY = 1;
+  const PLAIN_VELOCITY = 0.75;
+
+  // A step's notes: each note lasts through the ties after it.
+  function toNotes(input) {
+    const pattern = cleanPattern(input);
+    const ticks = PPQ / (pattern.triplet ? 3 : 4);
+    const notes = [];
+    for (let index = 0; index < pattern.length; index += 1) {
+      const item = pattern.steps[index];
+      if (item.kind !== "note") continue;
+      let span = 1;
+      while (index + span < pattern.length && pattern.steps[index + span].kind === "tie") span += 1;
+      notes.push({
+        time: index * ticks, length: span * ticks, note: midiNote(item),
+        velocity: item.accent ? ACCENT_VELOCITY : PLAIN_VELOCITY, probability: 100,
+        accent: item.accent, slide: item.slide,
+      });
+    }
+    return { span: pattern.length * ticks, notes };
+  }
+
+  /* A pattern from notes. The TD-3 plays one note at a time, so where notes start together
+     the lowest is kept. Notes land on the nearest step, in triplets if they all sit on a
+     triplet's steps and not a sixteenth's. A note held past its step is tied over the steps
+     after it, and one that runs into the next note slides into it. Notes are moved by
+     octaves into the TD-3's three. Accent comes from a TD-3's own accent, or else from the
+     loudest notes when they aren't all as loud. Steps past 16 are left off. */
+  function fromNotes(clip) {
+    const notes = (clip.notes || []).filter((n) => Number.isFinite(n.time) && Number.isFinite(n.note));
+    const on = (n, ticks) => Math.abs(n.time / ticks - Math.round(n.time / ticks)) < 0.01;
+    const triplet = notes.length > 0 && notes.every((n) => on(n, PPQ / 3)) && !notes.every((n) => on(n, PPQ / 4));
+    const ticks = PPQ / (triplet ? 3 : 4);
+    const pattern = emptyPattern();
+    pattern.triplet = triplet;
+    pattern.length = Math.max(1, Math.min(STEPS, Math.ceil((clip.span || STEPS * ticks) / ticks - 0.01)));
+    const loudest = Math.max(0, ...notes.map((n) => n.velocity ?? 1));
+    const varied = notes.some((n) => (n.velocity ?? 1) < loudest - 0.05);
+    const starts = new Map();
+    for (const n of notes) {
+      const index = Math.round(n.time / ticks);
+      if (index < 0 || index >= pattern.length) continue;
+      if (!starts.has(index) || n.note < starts.get(index).note) starts.set(index, n);
+    }
+    const order = [...starts.keys()].sort((a, b) => a - b);
+    order.forEach((index, at) => {
+      const n = starts.get(index);
+      let value = n.note - 24;
+      while (value < 0) value += 12;
+      while (value > 36) value -= 12;
+      const next = order[at + 1] ?? pattern.length;
+      const end = n.time + Math.max(1, n.length || ticks);
+      const steps = Math.max(1, Math.min(next - index, Math.round(end / ticks) - index));
+      const runsOn = order[at + 1] !== undefined && end > starts.get(order[at + 1]).time + 1;
+      pattern.steps[index] = step({
+        kind: "note", ...fromHeight(value),
+        accent: n.accent ?? (varied && (n.velocity ?? 1) >= loudest - 0.05),
+        slide: n.slide ?? runsOn,
+      });
+      for (let tie = 1; tie < steps; tie += 1) pattern.steps[index + tie] = step({ kind: "tie", ...fromHeight(value) });
+    });
+    return pattern;
+  }
+
   return {
     GROUPS, KEYS, SCALES, SLOTS, STEPS,
     cleanPattern, copyPattern, decode, decodeConfig, emptyPattern, encode, fromGrid, fromHeight,
     fromPitchValue, generate, gridBase, height, keyName, onGrid, rowName, midiNote, pitchValue, placeName, requestConfig, requestPattern, rotate,
-    slotName, snapToKey, splitSysex, step, transpose,
+    slotName, snapToKey, splitSysex, step, toNotes, fromNotes, transpose,
   };
 })();
 
