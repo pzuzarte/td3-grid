@@ -188,7 +188,7 @@ function withStep(index, edit) {
 // Copies the grid's pattern for any of the grids: S-1, TD-3, Bass Station or Protein.
 function copyToGrids() {
   const { span, notes } = TD3.toNotes(state.pattern);
-  if (!PatternClipboard.write(GRID_ID, span, notes)) {
+  if (!PatternClipboard.write(GRID_ID, span, notes, { triplet: state.pattern.triplet })) {
     setStatus("The browser wouldn't keep the copy.", true);
     return;
   }

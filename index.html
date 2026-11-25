@@ -63,8 +63,6 @@
 <section class="bar slots-bar" aria-label="Pattern">
   <div class="spacer"></div>
   <button id="generate" type="button" title="Replaces the pattern with a new acid line in the key. Undo brings the old one back.">Generate</button>
-  <button id="grid-copy" type="button" title="Copies the grid's pattern (Cmd+C), to paste here or in S-1, Bass Station or Protein Grid">Copy</button>
-  <button id="grid-paste" type="button" title="Replaces the grid's pattern with what was copied last in any of the grids (Cmd+V)" disabled>Paste</button>
   <button id="undo" type="button" title="Undo (Cmd+Z)" disabled>Undo</button>
   <button id="redo" type="button" title="Redo (Cmd+Shift+Z)" disabled>Redo</button>
   <button id="clear" type="button">Clear</button>
@@ -106,6 +104,10 @@
   <div class="button-pair" role="group" aria-label="Octave">
     <button id="down-octave" type="button" title="Moves every note down an octave">Oct -</button>
     <button id="up-octave" type="button" title="Moves every note up an octave">Oct +</button>
+  </div>
+  <div class="button-pair" role="group" aria-label="Copy and paste">
+    <button id="grid-copy" type="button" title="Copies the grid's pattern (Cmd+C), to paste here or in S-1, Bass Station or Protein Grid">Copy</button>
+    <button id="grid-paste" type="button" title="Replaces the grid's pattern with what was copied last in any of the grids (Cmd+V)" disabled>Paste</button>
   </div>
 </section>
 
@@ -222,7 +224,7 @@
       <li><b>Step</b>: a note, a tie, which holds the note before it for another step, or a rest. A pattern can't start with a tie.</li>
       <li><b>Steps</b> sets how many play, up to 16. <b>Triplets</b> plays them three to a beat.</li>
       <li><b>-1</b> and <b>+1</b> move every note a semitone, and <b>Oct -</b> and <b>Oct +</b> an octave, as far as the TD-3's range allows. <b>Shift</b> moves the steps round.</li>
-      <li><b>Copy</b> (Cmd+C) and <b>Paste</b> (Cmd+V) above the grid work between this grid and S-1, Bass Station and Protein Grid, open in the same browser: copy a pattern in one and paste it in another. Paste replaces the grid's pattern, and Undo brings it back. Notes from the other grids land on the nearest step, up to 16; a note held past its step is tied, one that runs into the next slides, the loudest notes are accented, and where notes play together the lowest is kept. A TD-3 pattern pasted into another grid keeps its ties as longer notes, and accents as louder ones.</li>
+      <li><b>Copy</b> (Cmd+C) and <b>Paste</b> (Cmd+V), after <b>Oct +</b>, work between this grid and S-1, Bass Station and Protein Grid, open in the same browser: copy a pattern in one and paste it in another. Paste replaces the grid's pattern, and Undo brings it back. Notes from the other grids land on the nearest step, up to 16; a note held past its step is tied, one that runs into the next slides, the loudest notes are accented, and where notes play together the lowest is kept. A TD-3 pattern pasted into another grid keeps its ties as longer notes, and accents as louder ones.</li>
       <li><b>Generate</b> writes a new acid line in the key. <b>Undo</b> brings back what was there.</li>
       <li><b>Play</b> plays the pattern on the TD-3 from this page, at the page's tempo, so you can hear it before sending it. Space starts and stops it.</li>
       <li><b>Panic</b> stops playback and silences any notes still sounding on the TD-3. <b>Click</b> plays a metronome click on each beat from this computer. <b>Send clock</b> sends MIDI clock, start and stop with playback. With its clock source set to USB, the TD-3 then plays its own stored pattern in time too, so turn it on only when you want that.</li>
@@ -266,8 +268,8 @@
 <script src="named-file.js?v=202611240920"></script>
 <script src="folder.js?v=202611240920"></script>
 <script src="td3.js?v=202611251300"></script>
-<script src="pattern-clipboard.js?v=202611251300"></script>
-<script src="app.js?v=202611251300"></script>
+<script src="pattern-clipboard.js?v=202611251530"></script>
+<script src="app.js?v=202611251530"></script>
 <script>
   // The tools menu closes when you click elsewhere or press Escape.
   document.addEventListener("click", (event) => {
