@@ -24,11 +24,10 @@ never receives your patterns.
   round, or generate a new acid line in a key. Undo and redo.
 - **Hear it:** play the pattern on the TD-3 from the page, with its slides, ties and
   accents, before sending it.
-- **Library:** save patterns by name in the browser, search them, and back them up to a
-  file. Import backups and .syx files.
-- **Pattern folder:** browse a folder of .syx pattern files on your computer, load them,
-  and save the grid's pattern there.
-- **Hear before loading:** play any library or folder pattern on the TD-3 without changing
+- **Library folder:** keep patterns as .syx files in a folder you choose, on this computer
+  or in Google Drive or the like, search them, and back them up to a file. Import backups and
+  .syx files. The page remembers the folder, and Song Grid lists its patterns by name.
+- **Hear before loading:** play any library pattern on the TD-3 without changing
   the grid.
 - **Transfer:** read any of the TD-3's 64 patterns into the grid, send the grid's pattern
   to any of them, or copy a whole group into the library. Before sending, the page reads

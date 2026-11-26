@@ -49,28 +49,32 @@
     </nav>
   </details>
   <button id="theme-toggle" class="theme-toggle" type="button" title="Switch between dark and light mode, for all the grids" aria-label="Dark or light mode">☀</button>
-  <button id="help-open" type="button" title="Help (press ?)">Help</button>
+  <button id="help-open" type="button" title="Help (press ?)" data-icon="help">Help</button>
 </header>
 
 <section class="bar name-bar" aria-label="This pattern's file">
   <span class="group-label">Pattern</span>
   <strong id="pattern-name" class="pattern-name untitled">Untitled</strong>
-  <button id="pattern-save" class="primary" type="button" title="Save this pattern again, to its .syx file or its place in the library (Cmd+S). The first time, it asks where.">Save</button>
-  <button id="pattern-save-as" type="button" title="Save this pattern as a new .syx file, choosing its name and folder (Cmd+Shift+S)">Save as&hellip;</button>
-  <button id="pattern-open" type="button" title="Open a TD-3 .syx file from anywhere on this computer into the grid">Open&hellip;</button>
+  <button id="pattern-save" class="primary" type="button" title="Save this pattern again, to its .syx file or its place in the library (Cmd+S). The first time, it asks where." data-icon="save">Save</button>
+  <button id="pattern-save-as" type="button" title="Save this pattern as a new .syx file, choosing its name and folder (Cmd+Shift+S)" data-icon="save-as">Save as&hellip;</button>
+  <button id="pattern-open" type="button" title="Open a TD-3 .syx file from anywhere on this computer into the grid" data-icon="open">Open&hellip;</button>
+  <button id="load-pattern" type="button" title="Show the patterns saved in the library" data-icon="library">Saved patterns</button>
+  <div class="spacer"></div>
+  <span id="library-where" class="pill library-where">No library folder</span>
+  <button id="folder-choose" type="button" data-icon="folder">Choose library folder</button>
 </section>
 
 <section class="bar slots-bar" aria-label="Pattern">
   <div class="spacer"></div>
-  <button id="generate" type="button" title="Replaces the pattern with a new acid line in the key. Undo brings the old one back.">Generate</button>
-  <button id="undo" type="button" title="Undo (Cmd+Z)" disabled>Undo</button>
-  <button id="redo" type="button" title="Redo (Cmd+Shift+Z)" disabled>Redo</button>
-  <button id="clear" type="button">Clear</button>
+  <button id="generate" type="button" title="Replaces the pattern with a new acid line in the key. Undo brings the old one back." data-icon="generate">Generate</button>
+  <button id="undo" type="button" title="Undo (Cmd+Z)" disabled data-icon="undo">Undo</button>
+  <button id="redo" type="button" title="Redo (Cmd+Shift+Z)" disabled data-icon="redo">Redo</button>
+  <button id="clear" type="button" data-icon="clear">Clear</button>
 </section>
 
 <section class="bar transport" aria-label="Transport and pattern settings">
-  <button id="play" class="primary" type="button" aria-pressed="false" title="Plays the pattern on the TD-3 from this page (Space)">Play</button>
-  <button id="stop-all" type="button" title="Stops playback and silences any stuck notes">Panic</button>
+  <button id="play" class="primary" type="button" aria-pressed="false" title="Plays the pattern on the TD-3 from this page (Space)" data-icon="auto">Play</button>
+  <button id="stop-all" type="button" title="Stops playback and silences any stuck notes" data-icon="panic">Panic</button>
   <label>BPM
     <input id="bpm" type="number" min="40" max="300" step="1" value="125">
   </label>
@@ -81,7 +85,7 @@
   <label class="check" title="Sends MIDI clock, start and stop with playback. With its clock source set to USB, the TD-3 then plays its own pattern in time too.">
     <input id="clock" type="checkbox"> Send clock
   </label>
-  <button id="click" class="toggle" type="button" aria-pressed="false" title="A metronome click on each beat while the pattern plays, louder on the first beat of each bar. It plays from this computer, not the TD-3.">Click</button>
+  <button id="click" class="toggle" type="button" aria-pressed="false" title="A metronome click on each beat while the pattern plays, louder on the first beat of each bar. It plays from this computer, not the TD-3." data-icon="click">Click</button>
   <label class="check" title="Plays each note you add on the TD-3">
     <input id="hear" type="checkbox" checked> Hear notes
   </label>
@@ -94,20 +98,20 @@
 
 <section class="bar tools" aria-label="Pattern tools">
   <div class="button-pair" role="group" aria-label="Shift">
-    <button id="shift-left" type="button" title="Moves every step one to the left, round to the end">Shift &lt;</button>
-    <button id="shift-right" type="button" title="Moves every step one to the right, round to the start">Shift &gt;</button>
+    <button id="shift-left" type="button" title="Moves every step one to the left, round to the end" data-icon="shift-left">Shift &lt;</button>
+    <button id="shift-right" type="button" title="Moves every step one to the right, round to the start" data-icon="shift-right">Shift &gt;</button>
   </div>
   <div class="button-pair" role="group" aria-label="Transpose">
     <button id="down-semitone" type="button" title="Moves every note down a semitone">-1</button>
     <button id="up-semitone" type="button" title="Moves every note up a semitone">+1</button>
   </div>
   <div class="button-pair" role="group" aria-label="Octave">
-    <button id="down-octave" type="button" title="Moves every note down an octave">Oct -</button>
-    <button id="up-octave" type="button" title="Moves every note up an octave">Oct +</button>
+    <button id="down-octave" type="button" title="Moves every note down an octave" data-icon="down">Oct -</button>
+    <button id="up-octave" type="button" title="Moves every note up an octave" data-icon="up">Oct +</button>
   </div>
   <div class="button-pair" role="group" aria-label="Copy and paste">
-    <button id="grid-copy" type="button" title="Copies the grid's pattern (Cmd+C), to paste here or in S-1, Bass Station or Protein Grid">Copy</button>
-    <button id="grid-paste" type="button" title="Replaces the grid's pattern with what was copied last in any of the grids (Cmd+V)" disabled>Paste</button>
+    <button id="grid-copy" type="button" title="Copies the grid's pattern (Cmd+C), to paste here or in S-1, Bass Station or Protein Grid" data-icon="copy">Copy</button>
+    <button id="grid-paste" type="button" title="Replaces the grid's pattern with what was copied last in any of the grids (Cmd+V)" disabled data-icon="paste">Paste</button>
   </div>
 </section>
 
@@ -136,8 +140,8 @@
         <button id="read-group" type="button" title="Copies all 16 patterns in this group from the TD-3 into the library">Read group to library</button>
       </div>
       <div class="row">
-        <button id="copy" type="button" title="Copies the chosen pattern on the TD-3, ready to paste into another place">Copy</button>
-        <button id="paste" type="button" title="Pastes the copied pattern into the chosen place on the TD-3, replacing what's there" disabled>Paste</button>
+        <button id="copy" type="button" title="Copies the chosen pattern on the TD-3, ready to paste into another place" data-icon="copy">Copy</button>
+        <button id="paste" type="button" title="Pastes the copied pattern into the chosen place on the TD-3, replacing what's there" disabled data-icon="paste">Paste</button>
         <small id="copied-text">Nothing copied</small>
       </div>
       <p id="put-back-row" class="row" hidden>
@@ -152,14 +156,13 @@
         <input id="name" type="text" maxlength="40" placeholder="Untitled">
       </label>
       <div class="row">
-        <button id="save" type="button" title="Saves the grid's pattern in the library in this browser, under this name">Save to library</button>
-        <button id="save-new" type="button" title="Saves it as a new library pattern, keeping the one it was loaded from">Save as new</button>
-        <button id="folder-save" type="button" title="Saves the grid's pattern as a .syx file in the pattern folder, under this name, for the chosen place on the TD-3">Save to folder</button>
+        <button id="save" type="button" title="Saves the grid's pattern in the library, under this name, as a .syx file in the library folder" data-icon="save">Save to library</button>
+        <button id="save-new" type="button" title="Saves it as a new library pattern, keeping the one it was loaded from" data-icon="save-as">Save as new</button>
       </div>
     </section>
 
     <section class="card library" aria-labelledby="library-title">
-      <h2 id="library-title">Library <small class="muted">in this browser</small></h2>
+      <h2 id="library-title">Library <small id="library-place" class="muted">in this browser</small></h2>
       <input id="search" type="search" placeholder="Search the library" aria-label="Search the library">
       <ul id="library" class="library-list"></ul>
       <p id="library-empty" class="muted"></p>
@@ -167,21 +170,11 @@
         <button id="export-syx" type="button" title="Downloads the grid's pattern as a .syx file for the chosen place on the TD-3">Download .syx</button>
         <button id="export" type="button" title="Downloads the whole library as a file">Back up</button>
         <button id="import" type="button" title="Adds patterns from a library backup or .syx file">Import</button>
+        <button id="folder-refresh" type="button" title="Looks at the library folder again, after adding files to it">Refresh</button>
         <input id="import-file" type="file" accept=".json,.syx,application/json" hidden>
       </div>
     </section>
 
-    <section class="card library" aria-labelledby="folder-title">
-      <h2 id="folder-title">Pattern folder <small class="muted">on this computer</small></h2>
-      <p id="folder-state" class="muted"></p>
-      <div class="row">
-        <button id="folder-choose" type="button" title="Choose a folder on this computer that holds .syx pattern files">Choose folder</button>
-        <button id="folder-refresh" type="button" title="Looks at the folder again, after adding files to it">Refresh</button>
-      </div>
-      <input id="folder-search" type="search" placeholder="Search the folder" aria-label="Search the folder">
-      <ul id="folder-list" class="library-list"></ul>
-      <p id="folder-empty" class="muted" hidden></p>
-    </section>
   </aside>
 </div>
 
@@ -242,18 +235,12 @@
 
     <h3>Library</h3>
     <ul>
-      <li>The bar at the top shows the pattern's name, large. <b>Save</b> (Cmd+S) saves it again: to its .syx file if it came from one or was saved as one, or to its place in the library in this browser. The first time, and with <b>Save as&hellip;</b> (Cmd+Shift+S), the Mac's Save dialog asks for a name and a folder, starting in the pattern folder, then in wherever you saved last. <b>Open&hellip;</b> opens a TD-3 .syx file from anywhere.</li>
-      <li><b>This pattern</b> holds the grid's pattern's name. <b>Save to library</b> keeps it in this browser under that name, and <b>Save to folder</b> saves it as a file in the pattern folder. Click a pattern in either list to load it, and Send it from there.</li>
-      <li><b>Back up</b> downloads the whole library as a file, and <b>Import</b> adds patterns from a backup or a .syx file. <b>Download .syx</b> saves the grid's pattern for the chosen place, for other SysEx tools.</li>
-      <li>The library is kept in this browser. Back it up now and then, as clearing the browser's data clears it.</li>
+      <li><b>Choose library folder</b>, at the end of the row with Save, picks where your library is kept: any folder on this computer, or one in Google Drive or the like to reach it from other computers too. Each pattern is kept there as its own .syx file, named after it, which other TD-3 tools can read. The page remembers the folder and saves there from then on. After Chrome restarts it may ask again: click <b>Allow library folder</b>. <b>Change library folder</b> moves to another one. The label beside it shows which folder is in use. Patterns you saved before choosing a folder are copied into it.</li>
+      <li>The bar at the top shows the pattern's name, large. <b>Save</b> (Cmd+S) saves it again: to its .syx file if it came from one or was saved as one, or to its place in the library. The first time, and with <b>Save as&hellip;</b> (Cmd+Shift+S), the Mac's Save dialog asks for a name and a folder, starting in the library folder, then in wherever you saved last. <b>Open&hellip;</b> opens a TD-3 .syx file from anywhere.</li>
+      <li><b>This pattern</b> holds the grid's pattern's name. <b>Save to library</b> saves it under that name, and <b>Save as new</b> keeps the one it was loaded from too. Click a pattern in the library to load it, and Send it from there. <b>Rename</b> and <b>Delete</b> change its file too. <b>Refresh</b> shows files added to the folder since.</li>
+      <li>Song Grid lists every pattern in the library, by name, to use in a song.</li>
+      <li><b>Back up</b> downloads the whole library as one file, and <b>Import</b> adds patterns from a backup or a .syx file. <b>Download .syx</b> saves the grid's pattern for the chosen place, for other SysEx tools.</li>
       <li><b>Hear</b> plays a pattern on the TD-3 without loading it into the grid. Click it again, or Stop, to stop. If the grid is already playing, the pattern takes over in time, and the grid's comes back when you stop hearing it.</li>
-    </ul>
-
-    <h3>Pattern folder</h3>
-    <ul>
-      <li><b>Choose folder</b> picks a folder on this computer that holds .syx files, such as ones downloaded from here or other TD-3 tools. Every file with a TD-3 pattern in it is listed. Chrome remembers the folder, and may ask you to allow it again after a restart.</li>
-      <li>Click a name to load it into the grid, or <b>Hear</b> to play it first. <b>Save to folder</b>, under This pattern, saves the grid's pattern there as a .syx file with its name. <b>Refresh</b> shows files added to the folder since.</li>
-      <li><b>Delete</b> deletes the file from your computer, after asking.</li>
     </ul>
 
     <h3>Keys</h3>
@@ -269,7 +256,9 @@
 <script src="folder.js?v=202611240920"></script>
 <script src="td3.js?v=202611251300"></script>
 <script src="pattern-clipboard.js?v=202611251530"></script>
-<script src="app.js?v=202611251530"></script>
+<script src="library-button.js?v=202611261000"></script>
+<script src="grid-icons.js?v=202611261000"></script>
+<script src="app.js?v=202611261000"></script>
 <script>
   // The tools menu closes when you click elsewhere or press Escape.
   document.addEventListener("click", (event) => {

@@ -728,6 +728,7 @@ function onReadGroup() {
     }
     library.push(...read);
     saveLibrary();
+    storeLibrary();
     renderLibrary();
     setStatus(`Copied group ${group + 1}'s 16 patterns into the library.`);
   });
@@ -1030,6 +1031,7 @@ function loadAssets(assets) {
   if (added.length) {
     library.push(...added);
     saveLibrary();
+    storeLibrary();
     renderLibrary();
   }
   const parts = [];
@@ -1074,6 +1076,7 @@ function readFilesForSong({ files = [] } = {}) {
   }
   if (patterns.length) {
     saveLibrary();
+    storeLibrary();
     renderLibrary();
   }
   return { patterns, skipped };
@@ -1185,12 +1188,12 @@ function saveToLibrary(asNew) {
   const existing = !asNew && library.find((item) => item.id === state.libraryId);
   if (existing) {
     Object.assign(existing, { name, pattern: TD3.copyPattern(state.pattern), saved: new Date().toISOString() });
-    setStatus(`Saved "${name}".`);
+    setStatus(folder.status === "ready" ? `Saved "${name}".` : `Saved "${name}" in this browser. Choose a library folder to keep it as a file.`);
   } else {
     const item = { id: newId(), name, pattern: TD3.copyPattern(state.pattern), saved: new Date().toISOString() };
     library.unshift(item);
     state.libraryId = item.id;
-    setStatus(`Saved "${name}" in the library.`);
+    setStatus(folder.status === "ready" ? `Saved "${name}" in the library.` : `Saved "${name}" in this browser. Choose a library folder to keep it as a file.`);
   }
   state.name = name;
   state.fileKey = null;
@@ -1198,12 +1201,26 @@ function saveToLibrary(asNew) {
   saveLibrary();
   save();
   renderLibrary();
+  folderTask(async () => {
+    if (folder.status !== "ready") return;
+    const entry = library.find((item) => item.id === state.libraryId);
+    // A renamed pattern gets a file under its new name; the old file goes.
+    if (entry?.file && entry.file !== name && folderItem(entry)) {
+      entry.file = await folder.rename(folderItem(entry), name);
+      entry.name = entry.file;
+      state.name = entry.file;
+      $("name").value = entry.file;
+      save();
+    }
+    if (entry?.file) await writeLibraryFile(entry.file, entry.pattern);
+    await syncFolder();
+  });
 }
 
 /* ---------- Pattern files ---------- */
 
 // A pattern saved as a .syx file, anywhere, with the Mac's Save dialog, starting in the
-// pattern folder. Save writes to the pattern's file again, or its library entry.
+// library folder. Save writes to the pattern's file again, or its library entry.
 const patternFiles = NamedFile.create({
   db: "td3-grid-files", id: "td3-grid-patterns", extension: ".syx", description: "TD-3 pattern", mime: "application/octet-stream",
 });
@@ -1237,7 +1254,7 @@ async function savePatternFile({ asNew = false } = {}) {
     $("name").value = saved.name;
     save();
     renderLibrary();
-    if (folder.status === "ready") folderTask(() => folder.refresh());
+    if (folder.status === "ready") storeLibrary();
     setStatus(`Saved "${saved.name}.syx", for ${place()}.`);
   } catch (error) {
     setStatus(`Couldn't save it: ${error.message}`, true);
@@ -1275,6 +1292,13 @@ function renameInLibrary(item) {
   const name = prompt("New name", item.name);
   if (name === null || !name.trim()) return;
   item.name = name.trim().slice(0, 40);
+  if (item.file && folderItem(item)) {
+    folderTask(async () => {
+      item.file = await folder.rename(folderItem(item), item.name);
+      item.name = item.file;
+      await syncFolder();
+    });
+  }
   if (item.id === state.libraryId) {
     state.name = item.name;
     $("name").value = item.name;
@@ -1292,6 +1316,7 @@ async function deleteFromLibrary(item) {
   save();
   renderLibrary();
   setStatus(`Deleted "${item.name}".`);
+  if (item.file && folderItem(item)) folderTask(async () => { await folder.remove(folderItem(item)); await syncFolder(); });
 }
 
 function download(name, bytes, type) {
@@ -1343,11 +1368,12 @@ async function importFile(file) {
   }
   library.push(...added);
   saveLibrary();
+  storeLibrary();
   renderLibrary();
   setStatus(`Added ${added.length} pattern${added.length === 1 ? "" : "s"} from ${file.name}.`);
 }
 
-/* ---------- Pattern folder ---------- */
+/* ---------- Library folder ---------- */
 
 // .syx pattern files in a folder on this computer. See folder.js.
 const folder = SoundFolder.create({
@@ -1367,101 +1393,90 @@ function firstPattern(bytes) {
   return null;
 }
 
-function renderFolder() {
-  const states = {
-    none: "Choose a folder of .syx pattern files on this computer to browse and hear them here.",
-    permission: `Click Allow folder to use "${folder.folder?.name}" again.`,
-    missing: "The folder can't be found. Click Choose folder.",
-    unsupported: "Browsing a folder needs a current Chrome or Edge on a computer.",
-  };
+/* The library is kept in the library folder, one .syx file for each pattern, named after
+   it, so it's there on any computer that uses the same folder, such as one in Google Drive.
+   The browser keeps a copy too, so songs can still play its patterns before Chrome allows
+   the folder again after a restart. Each pattern's id, which songs use, is kept in the
+   folder's library-info.json. Patterns saved while no folder was set are written into it
+   once one is. */
+
+function renderLibraryFolder() {
   const ready = folder.status === "ready";
-  const skipped = folder.skipped ? ` ${folder.skipped} other .syx file${folder.skipped === 1 ? " isn't a TD-3 pattern" : "s aren't TD-3 patterns"}.` : "";
-  $("folder-state").textContent = ready
-    ? `"${folder.folder.name}": ${folder.items.length} pattern${folder.items.length === 1 ? "" : "s"}.${skipped}`
-    : states[folder.status];
-  $("folder-choose").textContent = folder.status === "permission" ? "Allow folder" : ready ? "Choose another" : "Choose folder";
-  $("folder-choose").disabled = folder.status === "unsupported";
-  $("folder-save").disabled = !ready;
-  $("folder-save").title = ready
-    ? `Saves the grid's pattern as a .syx file in "${folder.folder.name}", under its name, for the chosen place on the TD-3`
-    : "Choose a pattern folder first, under Pattern folder";
+  LibraryButton.render($("folder-choose"), $("library-where"), folder.status, folder.folder?.name);
+  $("library-place").textContent = ready ? `in "${folder.folder.name}"` : "in this browser";
   $("folder-refresh").disabled = !ready;
-  $("folder-search").hidden = !ready || !folder.items.length;
-  const search = $("folder-search").value.trim().toLowerCase();
-  const shown = ready ? folder.items.filter((item) => !search || item.name.toLowerCase().includes(search)) : [];
-  $("folder-empty").hidden = !ready || shown.length > 0;
-  $("folder-empty").textContent = folder.items.length
-    ? `No files match "${$("folder-search").value.trim()}".`
-    : "No pattern files here yet. Save to folder adds the grid's pattern.";
-  $("folder-list").replaceChildren(...shown.map((item) => {
+}
+
+// The folder's file for a library pattern, if it has one.
+const folderItem = (entry) => (entry.file ? folder.items.find((item) => item.name === entry.file) : null);
+
+async function writeLibraryFile(name, pattern) {
+  const handle = await folder.folder.getFileHandle(`${name}.syx`, { create: true });
+  const writable = await handle.createWritable();
+  await writable.write(new Uint8Array(TD3.encode(pattern, state.group, state.slot)));
+  await writable.close();
+}
+
+// Writes patterns that aren't in the folder yet, then reads the library back from it.
+async function syncFolder() {
+  if (folder.status !== "ready") return;
+  const ids = new Set();
+  for (const entry of library) {
+    if (entry.file && folderItem(entry)) continue;
+    if (entry.file) continue; // Its file was deleted outside the page, so it goes.
+    entry.file = await folder.add(entry.name, TD3.encode(entry.pattern, state.group, state.slot), { id: entry.id });
+  }
+  await folder.refresh();
+  const next = [];
+  for (const item of folder.items) {
     const pattern = firstPattern(item.bytes);
-    const row = document.createElement("li");
-    const load = document.createElement("button");
-    load.type = "button";
-    load.className = "load";
-    load.textContent = item.name;
-    load.title = `Load "${item.name}.syx" into the grid`;
-    load.onclick = () => {
-      change(pattern, `Loaded "${item.name}.syx". Undo brings back what was in the grid.`);
-      state.name = item.name;
-      state.libraryId = null;
-      state.fileKey = null;
-      // Save writes back to this file.
-      const key = NamedFile.newKey();
-      folder.folder.getFileHandle(`${item.name}.syx`)
-        .then((handle) => patternFiles.remember(key, handle))
-        .then(() => { state.fileKey = key; save(); })
-        .catch(() => {});
-      $("name").value = item.name;
-      save();
-      renderLibrary();
-    };
-    const rename = document.createElement("button");
-    rename.type = "button";
-    rename.textContent = "Rename";
-    rename.onclick = () => folderTask(async () => {
-      const name = prompt("New name", item.name);
-      if (name === null || !name.trim()) return;
-      const saved = await folder.rename(item, name);
-      setStatus(`Renamed it "${saved}.syx".`);
-    });
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.textContent = "Delete";
-    remove.onclick = () => folderTask(async () => {
-      if (!await confirmDialog(`Delete "${item.name}.syx" from "${folder.folder.name}" on this computer? This can't be undone.`, "Delete")) return;
-      await folder.remove(item);
-      setStatus(`Deleted "${item.name}.syx".`);
-    });
-    row.append(load, hearButton(`folder:${item.name}`, pattern, item.name), rename, remove);
-    return row;
-  }));
-  renderPreviewButtons();
+    if (!pattern) continue;
+    const known = library.find((entry) => entry.file === item.name)
+      || library.find((entry) => !entry.file && entry.name === item.name);
+    let id = folder.info[item.name]?.id || known?.id || newId();
+    if (ids.has(id)) id = newId();
+    ids.add(id);
+    if (folder.info[item.name]?.id !== id) folder.info[item.name] = { ...folder.info[item.name], id };
+    next.push({ id, name: item.name, pattern, saved: new Date(item.modified || Date.now()).toISOString(), file: item.name });
+  }
+  await folder.saveInfo();
+  library = next;
+  saveLibrary();
+  renderLibrary();
 }
 
 async function folderTask(task) {
   try {
     await task();
   } catch (error) {
-    setStatus(`The folder couldn't be used: ${error.message}`, true);
+    setStatus(`The library folder couldn't be used: ${error.message}`, true);
   }
-  renderFolder();
+  renderLibraryFolder();
 }
+
+// After a change to the library, keeps the folder up to date.
+const storeLibrary = () => folderTask(syncFolder);
 
 function bindFolder() {
   $("folder-choose").onclick = () => folderTask(async () => {
+    const before = library.filter((entry) => !entry.file).length;
     if (await folder.choose({ another: folder.status === "ready" }) && folder.status === "ready") {
-      setStatus(`Using "${folder.folder.name}": ${folder.items.length} pattern${folder.items.length === 1 ? "" : "s"}.`);
+      await syncFolder();
+      const copied = before ? ` ${before} pattern${before === 1 ? " was" : "s were"} copied into it from this browser.` : "";
+      setStatus(`Your library is in "${folder.folder.name}": ${library.length} pattern${library.length === 1 ? "" : "s"}.${copied}`);
     }
   });
-  $("folder-refresh").onclick = () => folderTask(() => folder.refresh());
-  $("folder-save").onclick = () => folderTask(async () => {
-    const name = $("name").value.trim() || "Untitled";
-    const saved = await folder.add(name, TD3.encode(state.pattern, state.group, state.slot));
-    setStatus(`Saved "${saved}.syx" in "${folder.folder.name}", for ${place()}.`);
+  $("folder-refresh").onclick = () => folderTask(syncFolder);
+  // Saved patterns, beside Save, goes to the library list.
+  $("load-pattern").onclick = () => {
+    $("library-title").scrollIntoView({ block: "start" });
+    $("search").focus();
+    setStatus(library.length ? "Click a pattern in the library to load it into the grid." : "No saved patterns yet. Save to library, under This pattern, adds the grid's.");
+  };
+  folderTask(async () => {
+    await folder.restore();
+    await syncFolder();
   });
-  $("folder-search").oninput = renderFolder;
-  folderTask(() => folder.restore());
 }
 
 /* ---------- Setting up ---------- */
