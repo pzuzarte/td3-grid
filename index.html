@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TD-3 Grid</title>
-<link rel="stylesheet" href="style.css?v=202611240920">
+<link rel="stylesheet" href="style.css?v=202611261900">
 <script>
   // Set before the page draws, so it doesn't flash the other theme.
   try { if ((localStorage.getItem("midi-grids-theme") || localStorage.getItem("td3-grid-theme")) === "light") document.documentElement.dataset.theme = "light"; } catch {}
@@ -163,7 +163,8 @@
 
     <section class="card library" aria-labelledby="library-title">
       <h2 id="library-title">Library <small id="library-place" class="muted">in this browser</small></h2>
-      <input id="search" type="search" placeholder="Search the library" aria-label="Search the library">
+      <input id="search" type="search" placeholder="Search names and tags" aria-label="Search the library">
+      <div id="library-tags" class="tag-bar library-tags" role="group" aria-label="Show only favourite patterns, or those with a tag"></div>
       <ul id="library" class="library-list"></ul>
       <p id="library-empty" class="muted"></p>
       <div class="row">
@@ -238,6 +239,7 @@
       <li><b>Choose library folder</b>, at the end of the row with Save, picks where your library is kept: any folder on this computer, or one in Google Drive or the like to reach it from other computers too. Each pattern is kept there as its own .syx file, named after it, which other TD-3 tools can read. The page remembers the folder and saves there from then on. After Chrome restarts it may ask again: click <b>Allow library folder</b>. <b>Change library folder</b> moves to another one. The label beside it shows which folder is in use. Patterns you saved before choosing a folder are copied into it.</li>
       <li>The bar at the top shows the pattern's name, large. <b>Save</b> (Cmd+S) saves it again: to its .syx file if it came from one or was saved as one, or to its place in the library. The first time, and with <b>Save as&hellip;</b> (Cmd+Shift+S), the Mac's Save dialog asks for a name and a folder, starting in the library folder, then in wherever you saved last. <b>Open&hellip;</b> opens a TD-3 .syx file from anywhere.</li>
       <li><b>This pattern</b> holds the grid's pattern's name. <b>Save to library</b> saves it under that name, and <b>Save as new</b> keeps the one it was loaded from too. Click a pattern in the library to load it, and Send it from there. <b>Rename</b> and <b>Delete</b> change its file too. <b>Refresh</b> shows files added to the folder since.</li>
+      <li>Click the star beside a pattern to make it a favourite, and <b>Tags</b> to give it tags, words or short phrases separated by commas, such as "acid, intro". Under the search, <b>&#9733; Favourites</b> and a button for each tag you use show only those patterns, and you can pick several tags to narrow it further. They're kept with the patterns in the library folder's library-info.json, and Song Grid's Add list shows and filters them the same way.</li>
       <li>Song Grid lists every pattern in the library, by name, to use in a song.</li>
       <li><b>Back up</b> downloads the whole library as one file, and <b>Import</b> adds patterns from a backup or a .syx file. <b>Download .syx</b> saves the grid's pattern for the chosen place, for other SysEx tools.</li>
       <li><b>Hear</b> plays a pattern on the TD-3 without loading it into the grid. Click it again, or Stop, to stop. If the grid is already playing, the pattern takes over in time, and the grid's comes back when you stop hearing it.</li>
@@ -256,9 +258,10 @@
 <script src="folder.js?v=202611240920"></script>
 <script src="td3.js?v=202611251300"></script>
 <script src="pattern-clipboard.js?v=202611251530"></script>
+<script src="library-tags.js?v=202611261900"></script>
 <script src="library-button.js?v=202611261400"></script>
 <script src="grid-icons.js?v=202611261000"></script>
-<script src="app.js?v=202611261000"></script>
+<script src="app.js?v=202611261900"></script>
 <script>
   // The tools menu closes when you click elsewhere or press Escape.
   document.addEventListener("click", (event) => {

@@ -132,7 +132,14 @@ function cleanLibrary(items) {
     name: item.name.slice(0, 40) || "Untitled",
     pattern: TD3.cleanPattern(item.pattern),
     saved: typeof item.saved === "string" ? item.saved : new Date().toISOString(),
+    ...starAndTags(item),
   }));
+}
+
+// A pattern's favourite and tags, tidied, to keep with it. See library-tags.js.
+function starAndTags(item) {
+  const kept = LibraryTags.tidy({ favourite: Boolean(item?.favourite), tags: item?.tags });
+  return kept || {};
 }
 
 const newId = () => `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -1047,7 +1054,11 @@ function loadAssets(assets) {
    and its library's. fetchPicked gives the ones picked, as assets. See sync.js. */
 function catalog() {
   const [grid, ...saved] = collectAssets().patterns;
-  const choice = (item) => ({ id: item.id, label: item.label, meta: `${item.length}, ${item.notes} note${item.notes === 1 ? "" : "s"}` });
+  const marks = (item) => {
+    const entry = library.find((other) => `td3:${other.id}` === item.id);
+    return entry ? { favourite: Boolean(entry.favourite), tags: entry.tags || "" } : {};
+  };
+  const choice = (item) => ({ id: item.id, label: item.label, meta: `${item.length}, ${item.notes} note${item.notes === 1 ? "" : "s"}`, ...marks(item) });
   return { grid: [choice(grid)], patterns: saved.map(choice), sounds: [], note: "" };
 }
 
@@ -1143,12 +1154,16 @@ function hear(item) {
 
 /* ---------- Library ---------- */
 
+// Favourites and tags shown, and the search. See library-tags.js.
+const libraryFilter = LibraryTags.filter();
+
 function renderLibrary() {
-  const search = $("search").value.trim().toLowerCase();
-  const shown = library.filter((item) => !search || item.name.toLowerCase().includes(search));
+  libraryFilter.words = $("search").value;
+  LibraryTags.bar($("library-tags"), libraryFilter, library, renderLibrary);
+  const shown = library.filter((item) => LibraryTags.matches(libraryFilter, item.name, item));
   $("library-empty").hidden = shown.length > 0;
   $("library-empty").textContent = library.length
-    ? `No library patterns match "${$("search").value.trim()}".`
+    ? "No library patterns match."
     : "No saved patterns yet. Save one, or read a group from the TD-3.";
   $("library").replaceChildren(...shown.map((item) => {
     const row = document.createElement("li");
@@ -1159,6 +1174,17 @@ function renderLibrary() {
     load.textContent = item.name;
     load.title = `Load "${item.name}" into the grid. Saved ${item.saved.slice(0, 10)}.`;
     load.onclick = () => loadFromLibrary(item);
+    const pills = LibraryTags.pills(item);
+    if (pills) load.append(pills);
+    const star = LibraryTags.star(Boolean(item.favourite), item.name, () => changeStarAndTags(item, { favourite: !item.favourite }));
+    const tags = document.createElement("button");
+    tags.type = "button";
+    tags.textContent = "Tags";
+    tags.title = "Edit this pattern's tags";
+    tags.onclick = () => {
+      const answer = LibraryTags.ask(item.name, item, LibraryTags.counts(library).map((entry) => entry.tag));
+      if (answer !== null) changeStarAndTags(item, { tags: answer });
+    };
     const rename = document.createElement("button");
     rename.type = "button";
     rename.textContent = "Rename";
@@ -1167,10 +1193,30 @@ function renderLibrary() {
     remove.type = "button";
     remove.textContent = "Delete";
     remove.onclick = () => deleteFromLibrary(item);
-    row.append(load, hearButton(`browser:${item.id}`, item.pattern, item.name), rename, remove);
+    row.append(star, load, hearButton(`browser:${item.id}`, item.pattern, item.name), tags, rename, remove);
     return row;
   }));
   renderPreviewButtons();
+}
+
+// Stars a pattern or changes its tags, in the browser's copy of the library and in the
+// folder's info file, so they go wherever the folder goes.
+function changeStarAndTags(item, change) {
+  const next = starAndTags({ favourite: item.favourite, tags: item.tags, ...change });
+  delete item.favourite;
+  delete item.tags;
+  Object.assign(item, next);
+  saveLibrary();
+  renderLibrary();
+  if (folder.status !== "ready" || !item.file || !folderItem(item)) return;
+  folderTask(async () => {
+    const entry = { ...folder.info[item.file] };
+    delete entry.favourite;
+    delete entry.tags;
+    // Kept even when off, so another computer's copy can't bring an old star back.
+    folder.info[item.file] = { ...entry, favourite: Boolean(next.favourite), tags: next.tags || "" };
+    await folder.saveInfo();
+  });
 }
 
 function loadFromLibrary(item) {
@@ -1437,7 +1483,11 @@ async function syncFolder() {
     if (ids.has(id)) id = newId();
     ids.add(id);
     if (folder.info[item.name]?.id !== id) folder.info[item.name] = { ...folder.info[item.name], id };
-    next.push({ id, name: item.name, pattern, saved: new Date(item.modified || Date.now()).toISOString(), file: item.name });
+    // Its star and tags come from the folder, or from this browser the first time.
+    const info = folder.info[item.name];
+    const marks = "favourite" in info || "tags" in info ? starAndTags(info) : starAndTags(known);
+    folder.info[item.name] = { ...info, favourite: Boolean(marks.favourite), tags: marks.tags || "" };
+    next.push({ id, name: item.name, pattern, saved: new Date(item.modified || Date.now()).toISOString(), file: item.name, ...marks });
   }
   await folder.saveInfo();
   library = next;
